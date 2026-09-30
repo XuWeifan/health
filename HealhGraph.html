@@ -1,0 +1,1623 @@
+
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MedGraph — 医疗知识图谱管理系统</title>
+<script src="https://d3js.org/d3.v7.min.js">
+</script>
+<style>
+/* ============================================================
+   CSS Custom Properties — Theme System
+   ============================================================ */
+:root {
+  --bg: #FAFAFA;
+  --surface: #FFFFFF;
+  --fg: #111111;
+  --muted: #6B6B6B;
+  --border: #E5E5E5;
+  --accent: #2F6FEB;
+  --accent-light: #EBF1FD;
+  --accent-dark: #1D50B7;
+  --success: #17A34A;
+  --warn: #EAB308;
+  --danger: #DC2626;
+  --danger-light: #FEF2F2;
+  --success-light: #F0FDF4;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --font-display: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  --font-mono: ui-monospace, 'JetBrains Mono', 'SF Mono', monospace;
+  --transition-theme: background-color 0.35s ease, color 0.35s ease, border-color 0.35s ease, box-shadow 0.35s ease;
+}
+
+[data-theme="dark"] {
+  --bg: #0f0f0f;
+  --surface: #1a1a1a;
+  --fg: #e8e8e8;
+  --muted: #999999;
+  --border: #2a2a2a;
+  --accent-light: #1a2a4a;
+  --accent-dark: #6098F8;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
+  --danger-light: #2a1015;
+  --success-light: #0a1a10;
+}
+
+/* ============================================================
+   Reset & Base
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { font-size: 16px; -webkit-font-smoothing: antialiased; }
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--fg);
+  min-height: 100vh;
+  transition: var(--transition-theme);
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+
+/* ============================================================
+   Header Navigation
+   ============================================================ */
+.header {
+  position: sticky; top: 0; z-index: 100;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  height: 56px;
+  display: flex; align-items: center; justify-content: space-between;
+  transition: var(--transition-theme);
+  box-shadow: var(--shadow-sm);
+}
+
+.header-brand {
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--font-display);
+  font-weight: 700; font-size: 18px;
+  letter-spacing: -0.02em;
+  color: var(--fg);
+  flex-shrink: 0;
+}
+
+.header-brand .icon {
+  width: 32px; height: 32px;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 16px;
+}
+
+.header-nav { display: flex; gap: 4px; }
+
+.header-nav button {
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition-theme);
+  white-space: nowrap;
+}
+.header-nav button:hover { background: var(--accent-light); color: var(--accent); }
+.header-nav button.active { background: var(--accent-light); color: var(--accent); font-weight: 600; }
+
+.header-actions { display: flex; align-items: center; gap: 8px; }
+
+.theme-toggle {
+  width: 36px; height: 36px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+  transition: var(--transition-theme);
+  color: var(--fg);
+}
+.theme-toggle:hover { background: var(--accent-light); }
+
+.color-swatches { display: flex; gap: 4px; }
+
+.color-swatch {
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+.color-swatch:hover { transform: scale(1.2); }
+.color-swatch.active { border-color: var(--fg); }
+
+/* ============================================================
+   Main Content Area
+   ============================================================ */
+.main {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 24px;
+  min-height: calc(100vh - 56px);
+}
+
+.view { display: none; }
+.view.active { display: block; }
+
+/* ============================================================
+   Graph View (Home)
+   ============================================================ */
+.graph-container {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  height: calc(100vh - 140px);
+  min-height: 500px;
+  transition: var(--transition-theme);
+  box-shadow: var(--shadow-sm);
+}
+
+.graph-container svg { width: 100%; height: 100%; }
+
+.graph-search {
+  position: absolute;
+  top: 16px; left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  display: flex; gap: 8px; align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 6px 6px 6px 16px;
+  box-shadow: var(--shadow-md);
+  transition: var(--transition-theme);
+  min-width: 340px;
+}
+
+.graph-search input {
+  flex: 1;
+  border: none; outline: none;
+  background: transparent;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--fg);
+  min-width: 180px;
+}
+.graph-search input::placeholder { color: var(--muted); }
+
+.graph-search .search-btn {
+  padding: 8px 14px;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--font-body);
+  white-space: nowrap;
+}
+.graph-search .search-btn:hover { background: var(--accent-dark); }
+
+.graph-search .search-clear {
+  padding: 6px 10px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 16px;
+  border-radius: var(--radius-sm);
+}
+.graph-search .search-clear:hover { color: var(--fg); }
+
+.graph-legend {
+  position: absolute;
+  bottom: 16px; left: 16px;
+  display: flex; flex-wrap: wrap; gap: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition-theme);
+  font-size: 12px;
+}
+
+.legend-item { display: flex; align-items: center; gap: 6px; }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+.graph-tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  box-shadow: var(--shadow-md);
+  font-size: 13px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 20;
+  max-width: 260px;
+  color: var(--fg);
+}
+.graph-tooltip.visible { opacity: 1; }
+.graph-tooltip .tt-name { font-weight: 600; margin-bottom: 4px; }
+.graph-tooltip .tt-type { color: var(--muted); font-size: 11px; }
+.graph-tooltip .tt-desc { margin-top: 4px; font-size: 12px; color: var(--muted); }
+
+.node-detail-popup {
+  position: absolute;
+  top: 80px; right: 16px;
+  width: 300px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: 20px;
+  z-index: 15;
+  transition: var(--transition-theme);
+  max-height: calc(100% - 120px);
+  overflow-y: auto;
+}
+
+.node-detail-popup h3 {
+  font-family: var(--font-display);
+  font-size: 18px;
+  margin-bottom: 4px;
+}
+
+.node-detail-popup .popup-type {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--accent-light);
+  color: var(--accent);
+  margin-bottom: 10px;
+}
+
+.node-detail-popup .popup-desc { font-size: 13px; color: var(--muted); margin-bottom: 12px; line-height: 1.6; }
+.node-detail-popup .popup-relations { font-size: 13px; }
+
+.node-detail-popup .popup-relations li {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 6px;
+}
+
+.popup-close {
+  position: absolute;
+  top: 12px; right: 12px;
+  background: none; border: none;
+  font-size: 18px; cursor: pointer;
+  color: var(--muted);
+}
+
+/* ============================================================
+   Split Layout (Node Management & Config Management)
+   ============================================================ */
+.split-layout {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 24px;
+  height: calc(100vh - 140px);
+  min-height: 500px;
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition-theme);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+
+.panel-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.panel-header h2 {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.panel-header .btn-sm {
+  padding: 6px 12px;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--accent);
+  cursor: pointer;
+  font-weight: 500;
+  font-family: var(--font-body);
+  transition: var(--transition-theme);
+}
+.panel-header .btn-sm:hover { background: var(--accent-light); }
+
+.panel-toolbar {
+  padding: 10px 16px;
+  display: flex; gap: 6px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.panel-toolbar select,
+.panel-toolbar input {
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--fg);
+  transition: var(--transition-theme);
+  min-width: 0;
+}
+.panel-toolbar select:focus,
+.panel-toolbar input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.panel-toolbar input { flex: 1; }
+
+.panel-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.list-item {
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.15s ease;
+  border: 1px solid transparent;
+  margin-bottom: 4px;
+}
+.list-item:hover { background: var(--accent-light); }
+.list-item.active { background: var(--accent-light); border-color: var(--accent); }
+
+.list-item .item-name { font-weight: 600; font-size: 14px; margin-bottom: 2px; }
+.list-item .item-meta { display: flex; gap: 8px; font-size: 11px; color: var(--muted); flex-wrap: wrap; }
+
+.list-item .item-type-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  background: var(--accent-light);
+  color: var(--accent);
+}
+
+.panel-detail {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.empty-state {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  height: 100%;
+  color: var(--muted);
+  text-align: center;
+  gap: 8px;
+  padding: 48px 24px;
+}
+.empty-state .empty-icon { font-size: 48px; opacity: 0.4; }
+
+/* ============================================================
+   Config Management — category sidebar + detail
+   ============================================================ */
+.config-categories {
+  padding: 12px 8px;
+  display: flex; flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+}
+
+.config-category-item {
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 0.15s ease;
+  color: var(--fg);
+  display: flex; align-items: center; gap: 10px;
+}
+.config-category-item:hover { background: var(--accent-light); }
+.config-category-item.active { background: var(--accent-light); color: var(--accent); font-weight: 600; }
+
+.config-category-item .cat-icon { font-size: 18px; width: 24px; text-align: center; }
+
+.config-detail-header {
+  padding: 0 20px 16px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+
+.config-detail-header h3 {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+  display: flex; align-items: center; gap: 8px;
+}
+
+.config-detail-header .type-count {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.type-list-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 6px;
+  transition: var(--transition-theme);
+  background: var(--bg);
+}
+
+.type-list-item:hover { border-color: var(--accent); background: var(--surface); }
+
+.type-list-item .type-color-dot {
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.type-list-item .type-label {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  min-width: 0;
+}
+
+.type-list-item .type-usage {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+  background: var(--surface);
+  padding: 3px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+}
+
+.type-list-item button {
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  cursor: pointer;
+  font-size: 12px;
+  font-family: var(--font-body);
+  color: var(--fg);
+  transition: var(--transition-theme);
+  white-space: nowrap;
+}
+.type-list-item button:hover { background: var(--accent-light); color: var(--accent); }
+.type-list-item button.btn-delete-type:hover { background: var(--danger-light); color: var(--danger); border-color: var(--danger); }
+
+/* Inline edit for types */
+.inline-edit-row {
+  display: flex; gap: 8px; align-items: center;
+  padding: 4px 0;
+}
+
+.inline-edit-row input {
+  flex: 1;
+  padding: 9px 12px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-family: var(--font-body);
+  background: var(--surface);
+  color: var(--fg);
+}
+.inline-edit-row input:focus { outline: none; box-shadow: 0 0 0 3px var(--accent-light); }
+
+.inline-edit-row .btn-confirm {
+  padding: 9px 16px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+}
+.inline-edit-row .btn-cancel {
+  padding: 9px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.add-type-row {
+  margin-top: 10px;
+  padding: 12px;
+  border: 1.5px dashed var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: center;
+  font-size: 13px;
+  color: var(--accent);
+  font-weight: 500;
+  transition: var(--transition-theme);
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.add-type-row:hover { background: var(--accent-light); border-color: var(--accent); }
+
+/* ============================================================
+   Form (Node Detail)
+   ============================================================ */
+.form-group { margin-bottom: 16px; }
+.form-group label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--fg);
+  transition: var(--transition-theme);
+  resize: vertical;
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-light);
+}
+
+.form-group textarea { min-height: 70px; }
+
+.form-actions { display: flex; gap: 8px; margin-top: 20px; flex-wrap: wrap; }
+
+.btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: var(--accent-dark); }
+
+.btn-secondary {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--fg);
+}
+.btn-secondary:hover { background: var(--accent-light); }
+
+.btn-danger {
+  background: transparent;
+  border: 1px solid var(--danger);
+  color: var(--danger);
+}
+.btn-danger:hover { background: var(--danger-light); }
+
+.btn-sm { padding: 6px 12px; font-size: 12px; border-radius: var(--radius-sm); }
+
+/* Mini Graph */
+.mini-graph-container {
+  width: 100%;
+  height: 220px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  margin-top: 8px;
+  background: var(--bg);
+  overflow: hidden;
+  transition: var(--transition-theme);
+}
+
+/* Relation multi-select */
+.relation-row {
+  display: flex; gap: 6px; align-items: center;
+  margin-bottom: 8px;
+  padding: 8px;
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  transition: var(--transition-theme);
+}
+.relation-row select { flex: 1; min-width: 0; }
+.relation-row .btn-remove-rel {
+  background: none; border: none;
+  color: var(--danger); cursor: pointer;
+  font-size: 18px; padding: 4px;
+}
+
+/* Toast */
+.toast-container {
+  position: fixed;
+  top: 72px; right: 24px;
+  z-index: 200;
+  display: flex; flex-direction: column; gap: 8px;
+}
+
+.toast {
+  padding: 12px 20px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: var(--shadow-md);
+  animation: slideIn 0.3s ease;
+  max-width: 360px;
+  color: #fff;
+}
+.toast.success { background: var(--success); }
+.toast.error { background: var(--danger); }
+.toast.info { background: var(--accent); }
+
+@keyframes slideIn {
+  from { transform: translateX(120%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* ============================================================
+   Responsive
+   ============================================================ */
+@media (max-width: 1023px) {
+  .split-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+    gap: 16px;
+    height: auto;
+    min-height: auto;
+  }
+  .panel { max-height: 400px; }
+  .graph-search { min-width: 260px; left: 12px; transform: none; }
+  .node-detail-popup { width: 260px; right: 8px; top: 70px; }
+}
+
+@media (max-width: 639px) {
+  .header { padding: 0 8px; height: 48px; }
+  .header-brand { font-size: 14px; gap: 6px; }
+  .header-brand .icon { width: 26px; height: 26px; font-size: 13px; }
+  .header-nav button { padding: 5px 8px; font-size: 11px; }
+  .main { padding: 12px; }
+  .split-layout { gap: 12px; }
+  .graph-container { height: calc(100vh - 200px); min-height: 360px; }
+  .graph-search {
+    min-width: auto; left: 8px; right: 8px; top: 8px;
+    padding: 6px 6px 6px 12px;
+    border-radius: var(--radius-sm);
+  }
+  .graph-search input { min-width: 100px; font-size: 13px; }
+  .graph-legend { bottom: 8px; left: 8px; gap: 8px; padding: 6px 10px; font-size: 10px; }
+  .node-detail-popup { width: auto; left: 8px; right: 8px; top: 56px; }
+  .panel-toolbar { flex-direction: column; }
+  .color-swatches { display: none; }
+  .config-detail-header { padding: 0 12px 12px; }
+}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="header">
+  <div class="header-brand">
+    <div class="icon">◇</div>
+    <span>MedGraph</span>
+  </div>
+  <nav class="header-nav" id="headerNav">
+    <button data-view="graph" class="active">知识图谱</button>
+    <button data-view="nodes">节点管理</button>
+    <button data-view="config">配置管理</button>
+  </nav>
+  <div class="header-actions">
+    <div class="color-swatches" id="colorSwatches"></div>
+    <button class="theme-toggle" id="themeToggle" title="切换深色/浅色模式">◐</button>
+  </div>
+</header>
+
+<!-- Main Content -->
+<main class="main" id="mainContent">
+
+  <!-- Graph View -->
+  <div class="view active" id="view-graph">
+    <div class="graph-container" id="graphContainer">
+      <div class="graph-search" id="graphSearch">
+        <input type="text" id="graphSearchInput" placeholder="搜索节点名称、类型…" autocomplete="off">
+        <button class="search-clear" id="graphSearchClear" title="清除">✕</button>
+        <button class="search-btn" id="graphSearchBtn">搜索</button>
+      </div>
+      <div class="graph-legend" id="graphLegend"></div>
+      <div class="graph-tooltip" id="graphTooltip"></div>
+      <div class="node-detail-popup" id="nodeDetailPopup" style="display:none;">
+        <button class="popup-close" id="popupClose">✕</button>
+        <div id="popupContent"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Node Management View -->
+  <div class="view" id="view-nodes">
+    <div class="split-layout">
+      <div class="panel" id="nodeListPanel">
+        <div class="panel-header">
+          <h2>知识节点</h2>
+          <button class="btn-sm" id="btnAddNode">+ 新增节点</button>
+        </div>
+        <div class="panel-toolbar">
+          <select id="nodeTypeFilter">
+            <option value="">全部类型</option>
+          </select>
+          <select id="nodeSortBy">
+            <option value="name">按名称</option>
+            <option value="createdAt">按创建时间</option>
+            <option value="type">按类型</option>
+          </select>
+          <input type="text" id="nodeSearchInput" placeholder="搜索节点…" autocomplete="off">
+        </div>
+        <div class="panel-list" id="nodeList"></div>
+      </div>
+      <div class="panel" id="nodeDetailPanel">
+        <div class="panel-detail" id="nodeDetailContent">
+          <div class="empty-state">
+            <div class="empty-icon">📋</div>
+            <p>选择一个节点查看详情</p>
+            <p style="font-size:12px;color:var(--muted)">或点击「+ 新增节点」创建新节点</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Config Management View -->
+  <div class="view" id="view-config">
+    <div class="split-layout">
+      <div class="panel" id="configLeftPanel">
+        <div class="panel-header">
+          <h2>配置分类</h2>
+        </div>
+        <div class="config-categories" id="configCategories">
+          <div class="config-category-item active" data-config="relationTypes">
+            <span class="cat-icon">🔗</span>关系类型
+          </div>
+          <div class="config-category-item" data-config="nodeTypes">
+            <span class="cat-icon">🏷️</span>节点类型
+          </div>
+        </div>
+      </div>
+      <div class="panel" id="configRightPanel">
+        <div class="config-detail-header" id="configDetailHeader"></div>
+        <div class="panel-detail" id="configDetail"></div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+/* ============================================================
+   Medical Demo Data
+   ============================================================ */
+const DEFAULT_NODE_TYPES = ['疾病', '药品', '检查', '检验', 'ICD-9诊断', '量表'];
+const DEFAULT_RELATION_TYPES = ['治疗', '诊断依据', '检测指标', '相关检查', '评估工具', '编码对应', '并发症', '禁忌症'];
+
+const NODE_TYPE_COLORS = {
+  '疾病': '#DC2626',
+  '药品': '#2F6FEB',
+  '检查': '#7C3AED',
+  '检验': '#059669',
+  'ICD-9诊断': '#D97706',
+  '量表': '#DB2777'
+};
+
+const TYPE_COLOR_PALETTE = ['#DC2626','#2F6FEB','#7C3AED','#059669','#D97706','#DB2777','#0891B2','#4F46E5','#E11D48','#0D9488','#CA8A04','#9333EA','#2563EB','#C026D3','#65A30D'];
+
+function getTypeColor(type) {
+  if (NODE_TYPE_COLORS[type]) return NODE_TYPE_COLORS[type];
+  const idx = state.nodeTypes.indexOf(type);
+  if (idx >= 0) return TYPE_COLOR_PALETTE[idx % TYPE_COLOR_PALETTE.length];
+  return '#6B6B6B';
+}
+
+const DEMO_NODES = [
+  { id: 'n1',  name: '2型糖尿病',       type: '疾病',     description: '一种以高血糖为特征的慢性代谢性疾病，由胰岛素抵抗和胰岛素分泌不足共同导致。', createdAt: '2025-01-10' },
+  { id: 'n2',  name: '高血压病',         type: '疾病',     description: '动脉血压持续升高为主要表现的慢性疾病，收缩压≥140mmHg和/或舒张压≥90mmHg。', createdAt: '2025-01-10' },
+  { id: 'n3',  name: '冠心病',           type: '疾病',     description: '冠状动脉粥样硬化导致管腔狭窄或闭塞，引起心肌缺血缺氧的心脏病。', createdAt: '2025-01-11' },
+  { id: 'n4',  name: '肺炎',             type: '疾病',     description: '由细菌、病毒等病原体引起的肺部感染性疾病，常见症状包括发热、咳嗽、咳痰。', createdAt: '2025-01-12' },
+  { id: 'n5',  name: '慢性肾衰竭',       type: '疾病',     description: '各种慢性肾脏疾病持续进展的最终结局，肾小球滤过率持续低于15ml/min。', createdAt: '2025-01-13' },
+  { id: 'n6',  name: '脑卒中',           type: '疾病',     description: '急性脑血管疾病，包括缺血性脑卒中和出血性脑卒中，具有高致残率和高致死率。', createdAt: '2025-01-14' },
+  { id: 'n7',  name: '二甲双胍',         type: '药品',     description: '一线口服降糖药物，通过减少肝脏葡萄糖输出和改善外周胰岛素敏感性降低血糖。', createdAt: '2025-01-10' },
+  { id: 'n8',  name: '阿托伐他汀',       type: '药品',     description: 'HMG-CoA还原酶抑制剂，强效降低总胆固醇和低密度脂蛋白胆固醇，广泛用于心血管疾病防治。', createdAt: '2025-01-11' },
+  { id: 'n9',  name: '硝苯地平',         type: '药品',     description: '二氢吡啶类钙通道阻滞剂，通过扩张外周血管降低血压，用于治疗高血压和心绞痛。', createdAt: '2025-01-12' },
+  { id: 'n10', name: '阿莫西林',         type: '药品',     description: '广谱青霉素类抗生素，通过抑制细菌细胞壁合成发挥杀菌作用，用于呼吸道、泌尿道等感染。', createdAt: '2025-01-13' },
+  { id: 'n11', name: '氯沙坦',           type: '药品',     description: '血管紧张素II受体拮抗剂(ARB)，阻断AT1受体降低血压，兼具肾脏保护作用。', createdAt: '2025-01-14' },
+  { id: 'n12', name: '阿司匹林',         type: '药品',     description: '抗血小板聚集药物，小剂量用于心脑血管疾病的二级预防。', createdAt: '2025-01-15' },
+  { id: 'n13', name: '胸部X线检查',      type: '检查',     description: '利用X射线成像显示胸部结构，用于评估肺部、心脏及胸廓病变。', createdAt: '2025-01-10' },
+  { id: 'n14', name: '心电图(ECG)',       type: '检查',     description: '记录心脏电活动的无创检查，用于诊断心律失常、心肌缺血和心肌梗死。', createdAt: '2025-01-11' },
+  { id: 'n15', name: '超声心动图',       type: '检查',     description: '利用超声波成像评估心脏结构和功能，包括腔室大小、瓣膜功能和射血分数。', createdAt: '2025-01-12' },
+  { id: 'n16', name: '冠状动脉造影',     type: '检查',     description: '侵入性检查，通过导管注入造影剂显示冠状动脉狭窄或闭塞的部位和程度。', createdAt: '2025-01-13' },
+  { id: 'n17', name: '空腹血糖(FPG)',     type: '检验',     description: '禁食8小时后的血浆葡萄糖浓度，是诊断糖尿病和评估血糖控制的基本指标。正常值：3.9-6.1 mmol/L。', createdAt: '2025-01-10' },
+  { id: 'n18', name: '糖化血红蛋白(HbA1c)', type: '检验',   description: '反映过去2-3个月平均血糖水平的指标，用于糖尿病诊断和长期血糖控制评估。正常<5.7%。', createdAt: '2025-01-11' },
+  { id: 'n19', name: '血脂四项',         type: '检验',     description: '包括总胆固醇(TC)、甘油三酯(TG)、LDL-C、HDL-C，用于心血管疾病风险评估。', createdAt: '2025-01-12' },
+  { id: 'n20', name: '血肌酐(Cr)',        type: '检验',     description: '肾功能评估核心指标，反映肾小球滤过功能。正常值：男性54-106μmol/L，女性44-97μmol/L。', createdAt: '2025-01-13' },
+  { id: 'n21', name: '250.00 糖尿病',    type: 'ICD-9诊断', description: 'ICD-9-CM编码250.00，2型糖尿病不伴并发症，属于内分泌、营养和代谢疾病分类。', createdAt: '2025-01-10' },
+  { id: 'n22', name: '401.9 原发性高血压', type: 'ICD-9诊断', description: 'ICD-9-CM编码401.9，未明确的高血压性心脏病不伴心力衰竭。', createdAt: '2025-01-11' },
+  { id: 'n23', name: '486 肺炎',          type: 'ICD-9诊断', description: 'ICD-9-CM编码486，未明确病原体的肺炎，属于呼吸系统疾病分类。', createdAt: '2025-01-12' },
+  { id: 'n24', name: 'PHQ-9抑郁量表',    type: '量表',     description: '9条目患者健康问卷，用于抑郁症状筛查和严重程度评估。总分0-27分，≥10分提示中度抑郁。', createdAt: '2025-01-10' },
+  { id: 'n25', name: 'GAD-7焦虑量表',    type: '量表',     description: '7条目广泛性焦虑障碍筛查量表，评估过去2周焦虑症状频率。总分0-21分，≥10分提示中度焦虑。', createdAt: '2025-01-11' },
+];
+
+const DEMO_RELATIONS = [
+  { id: 'r1',  source: 'n7',  target: 'n1',  type: '治疗',       description: '二甲双胍是2型糖尿病的一线治疗药物' },
+  { id: 'r2',  source: 'n8',  target: 'n3',  type: '治疗',       description: '阿托伐他汀用于冠心病患者血脂管理' },
+  { id: 'r3',  source: 'n9',  target: 'n2',  type: '治疗',       description: '硝苯地平通过扩张血管降低血压' },
+  { id: 'r4',  source: 'n10', target: 'n4',  type: '治疗',       description: '阿莫西林用于治疗细菌性肺炎' },
+  { id: 'r5',  source: 'n11', target: 'n2',  type: '治疗',       description: '氯沙坦阻断AT1受体降低血压' },
+  { id: 'r6',  source: 'n11', target: 'n5',  type: '治疗',       description: '氯沙坦延缓慢性肾衰竭进展' },
+  { id: 'r7',  source: 'n12', target: 'n3',  type: '治疗',       description: '阿司匹林用于冠心病二级预防' },
+  { id: 'r8',  source: 'n12', target: 'n6',  type: '治疗',       description: '阿司匹林用于缺血性脑卒中二级预防' },
+  { id: 'r9',  source: 'n17', target: 'n1',  type: '检测指标',   description: '空腹血糖是诊断2型糖尿病的核心生化指标' },
+  { id: 'r10', source: 'n18', target: 'n1',  type: '检测指标',   description: 'HbA1c用于评估2型糖尿病长期血糖控制水平' },
+  { id: 'r11', source: 'n19', target: 'n3',  type: '检测指标',   description: '血脂四项用于冠心病风险评估' },
+  { id: 'r12', source: 'n20', target: 'n5',  type: '检测指标',   description: '血肌酐水平反映慢性肾衰竭的肾功能状态' },
+  { id: 'r13', source: 'n14', target: 'n3',  type: '诊断依据',   description: '心电图可发现心肌缺血的ST-T改变' },
+  { id: 'r14', source: 'n14', target: 'n6',  type: '诊断依据',   description: '心电图用于鉴别缺血性和出血性脑卒中' },
+  { id: 'r15', source: 'n15', target: 'n3',  type: '诊断依据',   description: '超声心动图评估冠心病患者心脏结构和功能' },
+  { id: 'r16', source: 'n13', target: 'n4',  type: '诊断依据',   description: '胸部X线检查显示肺炎的浸润性阴影' },
+  { id: 'r17', source: 'n16', target: 'n3',  type: '诊断依据',   description: '冠状动脉造影是诊断冠心病的金标准' },
+  { id: 'r18', source: 'n24', target: 'n6',  type: '评估工具',   description: 'PHQ-9用于评估脑卒中后抑郁症状' },
+  { id: 'r19', source: 'n25', target: 'n1',  type: '评估工具',   description: 'GAD-7评估糖尿病患者焦虑症状' },
+  { id: 'r20', source: 'n21', target: 'n1',  type: '编码对应',   description: 'ICD-9编码250.00对应2型糖尿病' },
+  { id: 'r21', source: 'n22', target: 'n2',  type: '编码对应',   description: 'ICD-9编码401.9对应原发性高血压' },
+  { id: 'r22', source: 'n23', target: 'n4',  type: '编码对应',   description: 'ICD-9编码486对应肺炎' },
+  { id: 'r23', source: 'n2',  target: 'n6',  type: '并发症',     description: '长期高血压是脑卒中的主要危险因素' },
+  { id: 'r24', source: 'n1',  target: 'n5',  type: '并发症',     description: '2型糖尿病是慢性肾衰竭的主要病因之一' },
+  { id: 'r25', source: 'n2',  target: 'n3',  type: '并发症',     description: '高血压加速冠状动脉粥样硬化' },
+  { id: 'r26', source: 'n19', target: 'n2',  type: '检测指标',   description: '血脂四项用于高血压合并高脂血症评估' },
+  { id: 'r27', source: 'n13', target: 'n3',  type: '相关检查',   description: '冠心病患者需定期胸部X线评估心脏大小和肺淤血' },
+  { id: 'r28', source: 'n20', target: 'n1',  type: '检测指标',   description: '血肌酐用于糖尿病肾病筛查' },
+];
+
+/* ============================================================
+   State Management
+   ============================================================ */
+const STORAGE_KEY_NODES = 'medgraph_nodes_v2';
+const STORAGE_KEY_RELATIONS = 'medgraph_relations_v2';
+const STORAGE_KEY_THEME = 'medgraph_theme';
+const STORAGE_KEY_ACCENT = 'medgraph_accent';
+const STORAGE_KEY_NODE_TYPES = 'medgraph_nodeTypes_v2';
+const STORAGE_KEY_RELATION_TYPES = 'medgraph_relationTypes_v2';
+
+const ACCENT_COLORS = ['#2F6FEB', '#DC2626', '#7C3AED', '#059669', '#D97706', '#DB2777', '#0891B2', '#4F46E5'];
+
+let state = {
+  nodes: [],
+  relations: [],
+  nodeTypes: [],
+  relationTypes: [],
+  theme: 'light',
+  accent: '#2F6FEB',
+  currentView: 'graph',
+  configCategory: 'relationTypes',
+  selectedNodeId: null,
+  searchTerm: '',
+};
+
+function loadData() {
+  const storedNodes = localStorage.getItem(STORAGE_KEY_NODES);
+  state.nodes = storedNodes ? JSON.parse(storedNodes) : JSON.parse(JSON.stringify(DEMO_NODES));
+  if (!storedNodes) saveNodes();
+
+  const storedRelations = localStorage.getItem(STORAGE_KEY_RELATIONS);
+  state.relations = storedRelations ? JSON.parse(storedRelations) : JSON.parse(JSON.stringify(DEMO_RELATIONS));
+  if (!storedRelations) saveRelations();
+
+  const storedNodeTypes = localStorage.getItem(STORAGE_KEY_NODE_TYPES);
+  state.nodeTypes = storedNodeTypes ? JSON.parse(storedNodeTypes) : [...DEFAULT_NODE_TYPES];
+  if (!storedNodeTypes) saveNodeTypes();
+
+  const storedRelationTypes = localStorage.getItem(STORAGE_KEY_RELATION_TYPES);
+  state.relationTypes = storedRelationTypes ? JSON.parse(storedRelationTypes) : [...DEFAULT_RELATION_TYPES];
+  if (!storedRelationTypes) saveRelationTypes();
+}
+
+function saveNodes() { localStorage.setItem(STORAGE_KEY_NODES, JSON.stringify(state.nodes)); }
+function saveRelations() { localStorage.setItem(STORAGE_KEY_RELATIONS, JSON.stringify(state.relations)); }
+function saveNodeTypes() { localStorage.setItem(STORAGE_KEY_NODE_TYPES, JSON.stringify(state.nodeTypes)); }
+function saveRelationTypes() { localStorage.setItem(STORAGE_KEY_RELATION_TYPES, JSON.stringify(state.relationTypes)); }
+
+function loadTheme() {
+  const saved = localStorage.getItem(STORAGE_KEY_THEME);
+  if (saved) state.theme = saved;
+  const savedAccent = localStorage.getItem(STORAGE_KEY_ACCENT);
+  if (savedAccent) state.accent = savedAccent;
+  applyTheme();
+}
+
+function applyTheme() {
+  document.documentElement.setAttribute('data-theme', state.theme);
+  document.documentElement.style.setProperty('--accent', state.accent);
+  document.documentElement.style.setProperty('--accent-light', state.accent + '22');
+  const darkAccent = adjustColor(state.accent, -15);
+  document.documentElement.style.setProperty('--accent-dark', darkAccent);
+  localStorage.setItem(STORAGE_KEY_THEME, state.theme);
+  localStorage.setItem(STORAGE_KEY_ACCENT, state.accent);
+}
+
+function adjustColor(hex, amount) {
+  const num = parseInt(hex.slice(1), 16);
+  let r = Math.min(255, Math.max(0, (num >> 16) + amount));
+  let g = Math.min(255, Math.max(0, ((num >> 8) & 0x00FF) + amount));
+  let b = Math.min(255, Math.max(0, (num & 0x0000FF) + amount));
+  return '#' + (0x1000000 + (r << 16) + (g << 8) + b).toString(16).slice(1);
+}
+
+function generateId(prefix) { return prefix + Date.now() + '_' + Math.random().toString(36).slice(2, 8); }
+function getNodeById(id) { return state.nodes.find(n => n.id === id); }
+function getRelationsForNode(nodeId) { return state.relations.filter(r => r.source === nodeId || r.target === nodeId); }
+
+function getActiveNodeTypes() {
+  const used = new Set(state.nodes.map(n => n.type));
+  return [...new Set([...state.nodeTypes, ...used])];
+}
+function getActiveRelationTypes() {
+  const used = new Set(state.relations.map(r => r.type));
+  return [...new Set([...state.relationTypes, ...used])];
+}
+function getNodeTypeUsageCount(type) { return state.nodes.filter(n => n.type === type).length; }
+function getRelationTypeUsageCount(type) { return state.relations.filter(r => r.type === type).length; }
+
+/* ============================================================
+   Toast
+   ============================================================ */
+function showToast(message, type = 'info') {
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = 'toast ' + type;
+  toast.textContent = message;
+  container.appendChild(toast);
+  setTimeout(() => toast.remove(), 2800);
+}
+
+/* ============================================================
+   Theme Controls
+   ============================================================ */
+function initThemeControls() {
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    state.theme = state.theme === 'light' ? 'dark' : 'light';
+    applyTheme();
+    if (state.currentView === 'graph') renderGraph();
+    showToast(state.theme === 'dark' ? '已切换为深色模式' : '已切换为浅色模式', 'info');
+  });
+
+  const swatchesContainer = document.getElementById('colorSwatches');
+  ACCENT_COLORS.forEach(color => {
+    const swatch = document.createElement('div');
+    swatch.className = 'color-swatch' + (color === state.accent ? ' active' : '');
+    swatch.style.backgroundColor = color;
+    swatch.addEventListener('click', () => {
+      state.accent = color;
+      applyTheme();
+      if (state.currentView === 'graph') renderGraph();
+      document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+      swatch.classList.add('active');
+      showToast('主题色已更新', 'info');
+    });
+    swatchesContainer.appendChild(swatch);
+  });
+}
+
+/* ============================================================
+   Navigation
+   ============================================================ */
+function initNavigation() {
+  document.getElementById('headerNav').addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    const viewName = btn.dataset.view;
+    if (viewName === state.currentView) return;
+
+    document.querySelectorAll('.header-nav button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById('view-' + viewName).classList.add('active');
+    state.currentView = viewName;
+    state.selectedNodeId = null;
+    state.searchTerm = '';
+
+    if (viewName === 'graph') {
+      document.getElementById('graphSearchInput').value = '';
+      document.getElementById('nodeDetailPopup').style.display = 'none';
+      renderGraph();
+    } else if (viewName === 'nodes') {
+      renderNodeManagement();
+    } else if (viewName === 'config') {
+      renderConfigManagement();
+    }
+  });
+}
+
+/* ============================================================
+   Config Management (independent top-level view)
+   ============================================================ */
+function initConfigCategories() {
+  document.getElementById('configCategories').addEventListener('click', (e) => {
+    const item = e.target.closest('.config-category-item');
+    if (!item) return;
+    state.configCategory = item.dataset.config;
+    document.querySelectorAll('.config-category-item').forEach(c => c.classList.remove('active'));
+    item.classList.add('active');
+    renderConfigDetail();
+  });
+}
+
+function renderConfigManagement() {
+  document.querySelectorAll('.config-category-item').forEach(item => {
+    item.classList.toggle('active', item.dataset.config === state.configCategory);
+  });
+  renderConfigDetail();
+}
+
+function renderConfigDetail() {
+  const header = document.getElementById('configDetailHeader');
+  const container = document.getElementById('configDetail');
+
+  if (state.configCategory === 'relationTypes') {
+    header.innerHTML = `<h3>关系类型 <span class="type-count">（${state.relationTypes.length} 个类型）</span></h3>`;
+    renderTypeList(container, 'relationTypes', state.relationTypes, getRelationTypeUsageCount, false);
+  } else {
+    header.innerHTML = `<h3>节点类型 <span class="type-count">（${state.nodeTypes.length} 个类型）</span></h3>`;
+    renderTypeList(container, 'nodeTypes', state.nodeTypes, getNodeTypeUsageCount, true);
+  }
+}
+
+function renderTypeList(container, categoryKey, types, usageFn, showColor) {
+  let html = '';
+
+  types.forEach((type, idx) => {
+    const usage = usageFn(type);
+    const color = showColor ? getTypeColor(type) : 'var(--accent)';
+    html += `
+      <div class="type-list-item" data-type="${escapeAttr(type)}" data-idx="${idx}">
+        <div class="type-color-dot" style="background:${color};min-width:16px;"></div>
+        <span class="type-label">${escapeHtml(type)}</span>
+        <span class="type-usage">${usage > 0 ? usage + ' 个使用中' : '未使用'}</span>
+        <button class="btn-edit-type">编辑</button>
+        <button class="btn-delete-type">删除</button>
+      </div>`;
+  });
+
+  html += `<div class="add-type-row" id="addTypeRow">+ 新增类型</div>`;
+  container.innerHTML = html;
+
+  // Edit handler
+  container.querySelectorAll('.btn-edit-type').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const row = btn.closest('.type-list-item');
+      startInlineEdit(row, categoryKey);
+    });
+  });
+
+  // Delete handler
+  container.querySelectorAll('.btn-delete-type').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const row = btn.closest('.type-list-item');
+      deleteType(row.dataset.type, categoryKey);
+    });
+  });
+
+  // Add handler
+  container.querySelector('#addTypeRow').addEventListener('click', () => {
+    startInlineAdd(container, categoryKey);
+  });
+}
+
+function startInlineEdit(row, categoryKey) {
+  const typeName = row.dataset.type;
+  const idx = parseInt(row.dataset.idx);
+  row.innerHTML = `
+    <div class="inline-edit-row" style="flex:1;">
+      <input type="text" value="${escapeHtml(typeName)}" id="inlineEditInput" autofocus>
+      <button class="btn-confirm" id="btnConfirmEdit">保存</button>
+      <button class="btn-cancel" id="btnCancelEdit">取消</button>
+    </div>`;
+
+  const input = row.querySelector('#inlineEditInput');
+  input.focus(); input.select();
+
+  row.querySelector('#btnConfirmEdit').addEventListener('click', () => {
+    const newName = input.value.trim();
+    if (!newName) { showToast('名称不能为空', 'error'); return; }
+    if (newName === typeName) { renderConfigDetail(); return; }
+
+    const types = categoryKey === 'nodeTypes' ? state.nodeTypes : state.relationTypes;
+    if (types.includes(newName)) { showToast('类型名称已存在', 'error'); return; }
+
+    types[idx] = newName;
+
+    if (categoryKey === 'nodeTypes') {
+      state.nodes.forEach(n => { if (n.type === typeName) n.type = newName; });
+      saveNodes(); saveNodeTypes();
+    } else {
+      state.relations.forEach(r => { if (r.type === typeName) r.type = newName; });
+      saveRelations(); saveRelationTypes();
+    }
+
+    showToast('类型已更新', 'success');
+    renderConfigDetail();
+    if (state.currentView === 'nodes') renderNodeManagement();
+    if (state.currentView === 'graph') renderGraph();
+  });
+
+  row.querySelector('#btnCancelEdit').addEventListener('click', () => renderConfigDetail());
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') row.querySelector('#btnConfirmEdit').click();
+    if (e.key === 'Escape') row.querySelector('#btnCancelEdit').click();
+  });
+}
+
+function startInlineAdd(container, categoryKey) {
+  const addRow = container.querySelector('#addTypeRow');
+  const label = categoryKey === 'nodeTypes' ? '节点类型' : '关系类型';
+  addRow.outerHTML = `
+    <div class="inline-edit-row" id="inlineAddRow">
+      <input type="text" placeholder="输入新${label}名称…" id="inlineAddInput" autofocus>
+      <button class="btn-confirm" id="btnConfirmAdd">添加</button>
+      <button class="btn-cancel" id="btnCancelAdd">取消</button>
+    </div>`;
+
+  const input = document.getElementById('inlineAddInput');
+  input.focus();
+
+  document.getElementById('btnConfirmAdd').addEventListener('click', () => {
+    const newName = input.value.trim();
+    if (!newName) { showToast('名称不能为空', 'error'); return; }
+
+    const types = categoryKey === 'nodeTypes' ? state.nodeTypes : state.relationTypes;
+    if (types.includes(newName)) { showToast('类型名称已存在', 'error'); return; }
+
+    types.push(newName);
+    if (categoryKey === 'nodeTypes') saveNodeTypes();
+    else saveRelationTypes();
+
+    showToast('类型已添加', 'success');
+    renderConfigDetail();
+    if (state.currentView === 'nodes') renderNodeManagement();
+    if (state.currentView === 'graph') renderGraph();
+  });
+
+  document.getElementById('btnCancelAdd').addEventListener('click', () => renderConfigDetail());
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('btnConfirmAdd').click();
+    if (e.key === 'Escape') document.getElementById('btnCancelAdd').click();
+  });
+}
+
+function deleteType(typeName, categoryKey) {
+  const types = categoryKey === 'nodeTypes' ? state.nodeTypes : state.relationTypes;
+  const usageCount = categoryKey === 'nodeTypes' ? getNodeTypeUsageCount(typeName) : getRelationTypeUsageCount(typeName);
+
+  if (usageCount > 0) {
+    const entity = categoryKey === 'nodeTypes' ? '节点' : '关系';
+    if (!confirm(`类型「${typeName}」当前被 ${usageCount} 个${entity}使用。\n\n删除后这些${entity}的类型将保持不变，但该类型会从筛选器中移除。\n\n确定删除？`)) return;
+  } else {
+    if (!confirm(`确定删除类型「${typeName}」？`)) return;
+  }
+
+  const idx = types.indexOf(typeName);
+  if (idx >= 0) types.splice(idx, 1);
+  if (categoryKey === 'nodeTypes') saveNodeTypes();
+  else saveRelationTypes();
+
+  showToast('类型已删除', 'success');
+  renderConfigDetail();
+  if (state.currentView === 'nodes') renderNodeManagement();
+  if (state.currentView === 'graph') renderGraph();
+}
+
+/* ============================================================
+   D3 Force Graph
+   ============================================================ */
+let graphSimulation = null, graphSvg = null, graphG = null, graphZoom = null;
+
+function renderGraph() {
+  const container = document.getElementById('graphContainer');
+  const width = container.clientWidth, height = container.clientHeight;
+
+  d3.select('#graphContainer svg').remove();
+  graphSvg = d3.select('#graphContainer').append('svg').attr('width', width).attr('height', height);
+  graphG = graphSvg.append('g');
+
+  graphZoom = d3.zoom().scaleExtent([0.15, 4]).on('zoom', (event) => { graphG.attr('transform', event.transform); });
+  graphSvg.call(graphZoom);
+  graphSvg.call(graphZoom.transform, d3.zoomIdentity.translate(width / 2, height / 2).scale(0.85));
+
+  const searchTerm = state.searchTerm.trim().toLowerCase();
+  let filteredNodes = state.nodes, filteredRelations = state.relations;
+  let highlightedNodeIds = new Set();
+
+  if (searchTerm) {
+    highlightedNodeIds = new Set(state.nodes.filter(n =>
+      n.name.toLowerCase().includes(searchTerm) || n.type.toLowerCase().includes(searchTerm) || n.description.toLowerCase().includes(searchTerm)
+    ).map(n => n.id));
+    const neighborIds = new Set();
+    state.relations.forEach(r => {
+      if (highlightedNodeIds.has(r.source)) neighborIds.add(r.target);
+      if (highlightedNodeIds.has(r.target)) neighborIds.add(r.source);
+    });
+    highlightedNodeIds = new Set([...highlightedNodeIds, ...neighborIds]);
+    filteredNodes = state.nodes.filter(n => highlightedNodeIds.has(n.id));
+    filteredRelations = state.relations.filter(r => highlightedNodeIds.has(r.source) && highlightedNodeIds.has(r.target));
+  }
+
+  const links = filteredRelations.map(r => ({ source: r.source, target: r.target, type: r.type, id: r.id }));
+
+  graphSimulation = d3.forceSimulation(filteredNodes)
+    .force('link', d3.forceLink(links).id(d => d.id).distance(120))
+    .force('charge', d3.forceManyBody().strength(-350))
+    .force('center', d3.forceCenter(0, 0))
+    .force('collide', d3.forceCollide(40));
+
+  const link = graphG.append('g').selectAll('line').data(links).join('line')
+    .attr('stroke', 'var(--border)').attr('stroke-width', 1.5).attr('stroke-opacity', 0.7)
+    .attr('stroke-dasharray', d => d.type === '并发症' ? '5,4' : null);
+
+  const node = graphG.append('g').selectAll('g').data(filteredNodes).join('g')
+    .attr('cursor', 'pointer')
+    .call(d3.drag()
+      .on('start', (event, d) => { if (!event.active) graphSimulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+      .on('drag', (event, d) => { d.fx = event.x; d.fy = event.y; })
+      .on('end', (event, d) => { if (!event.active) graphSimulation.alphaTarget(0); d.fx = null; d.fy = null; }));
+
+  node.append('circle')
+    .attr('r', d => Math.min(12 + getRelationsForNode(d.id).length * 2, 28))
+    .attr('fill', d => getTypeColor(d.type))
+    .attr('stroke', 'var(--surface)').attr('stroke-width', 2.5)
+    .attr('opacity', d => (searchTerm && highlightedNodeIds.has(d.id)) || !searchTerm ? 1 : 0.15)
+    .style('transition', 'opacity 0.3s ease');
+
+  node.append('text')
+    .text(d => d.name.length > 8 ? d.name.slice(0, 7) + '…' : d.name)
+    .attr('dy', 36).attr('text-anchor', 'middle')
+    .attr('fill', 'var(--fg)').attr('font-size', '12px').attr('font-family', 'var(--font-body)').attr('font-weight', '500')
+    .attr('opacity', d => (searchTerm && highlightedNodeIds.has(d.id)) || !searchTerm ? 1 : 0.15)
+    .style('transition', 'opacity 0.3s ease').style('pointer-events', 'none');
+
+  node.on('mouseenter', function(event, d) {
+    if (searchTerm && !highlightedNodeIds.has(d.id)) return;
+    const connectedIds = new Set();
+    state.relations.forEach(r => { if (r.source === d.id) connectedIds.add(r.target); if (r.target === d.id) connectedIds.add(r.source); });
+    connectedIds.add(d.id);
+    graphG.selectAll('circle').attr('opacity', nd => connectedIds.has(nd.id) ? 1 : 0.2);
+    graphG.selectAll('text').attr('opacity', nd => connectedIds.has(nd.id) ? 1 : 0.2);
+    graphG.selectAll('line').attr('stroke-opacity', ld => (ld.source.id === d.id || ld.target.id === d.id) ? 1 : 0.1).attr('stroke-width', ld => (ld.source.id === d.id || ld.target.id === d.id) ? 2.5 : 1);
+    const tooltip = document.getElementById('graphTooltip');
+    tooltip.innerHTML = `<div class="tt-name">${d.name}</div><div class="tt-type">${d.type}</div><div class="tt-desc">${d.description.slice(0, 80)}…</div>`;
+    tooltip.classList.add('visible');
+  });
+
+  node.on('mousemove', function(event) {
+    const tooltip = document.getElementById('graphTooltip');
+    const cr = container.getBoundingClientRect();
+    tooltip.style.left = (event.clientX - cr.left + 16) + 'px';
+    tooltip.style.top = (event.clientY - cr.top - 60) + 'px';
+  });
+
+  node.on('mouseleave', function() {
+    if (!searchTerm) { graphG.selectAll('circle').attr('opacity', 1); graphG.selectAll('text').attr('opacity', 1); }
+    else { graphG.selectAll('circle').attr('opacity', nd => highlightedNodeIds.has(nd.id) ? 1 : 0.15); graphG.selectAll('text').attr('opacity', nd => highlightedNodeIds.has(nd.id) ? 1 : 0.15); }
+    graphG.selectAll('line').attr('stroke-opacity', 0.7).attr('stroke-width', 1.5);
+    document.getElementById('graphTooltip').classList.remove('visible');
+  });
+
+  node.on('click', function(event, d) { event.stopPropagation(); state.selectedNodeId = d.id; showNodePopup(d); });
+  graphSvg.on('click', function() { state.selectedNodeId = null; document.getElementById('nodeDetailPopup').style.display = 'none'; });
+  graphSimulation.on('tick', () => {
+    link.attr('x1', d => d.source.x).attr('y1', d => d.source.y).attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+    node.attr('transform', d => `translate(${d.x},${d.y})`);
+  });
+
+  renderGraphLegend();
+}
+
+function renderGraphLegend() {
+  document.getElementById('graphLegend').innerHTML = getActiveNodeTypes().map(type =>
+    `<div class="legend-item"><div class="legend-dot" style="background:${getTypeColor(type)};"></div><span>${type}</span></div>`
+  ).join('');
+}
+
+function showNodePopup(node) {
+  const popup = document.getElementById('nodeDetailPopup');
+  const content = document.getElementById('popupContent');
+  const relations = getRelationsForNode(node.id);
+  let relHtml = '<ul class="popup-relations">';
+  relations.forEach(r => {
+    const otherId = r.source === node.id ? r.target : r.source;
+    const otherNode = getNodeById(otherId);
+    if (otherNode) {
+      relHtml += `<li><span style="color:var(--accent);font-weight:500">${r.type}</span> ${r.source === node.id ? '→' : '←'} ${otherNode.name} <span style="color:var(--muted);font-size:11px">(${otherNode.type})</span></li>`;
+    }
+  });
+  relHtml += relations.length === 0 ? '<li style="color:var(--muted)">暂无关联关系</li>' : '</ul>';
+  content.innerHTML = `<h3>${escapeHtml(node.name)}</h3><div class="popup-type">${escapeHtml(node.type)}</div><div class="popup-desc">${escapeHtml(node.description)}</div><div style="font-weight:600;font-size:13px;margin-bottom:6px;">关联关系 (${relations.length})</div>${relHtml}`;
+  popup.style.display = 'block';
+}
+
+document.getElementById('popupClose').addEventListener('click', () => {
+  document.getElementById('nodeDetailPopup').style.display = 'none';
+  state.selectedNodeId = null;
+});
+
+/* ============================================================
+   Graph Search
+   ============================================================ */
+function initGraphSearch() {
+  const input = document.getElementById('graphSearchInput');
+  const doSearch = () => { state.searchTerm = input.value.trim(); renderGraph(); };
+  document.getElementById('graphSearchBtn').addEventListener('click', doSearch);
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') doSearch(); });
+  document.getElementById('graphSearchClear').addEventListener('click', () => { input.value = ''; state.searchTerm = ''; renderGraph(); });
+}
+
+/* ============================================================
+   Node Management
+   ============================================================ */
+let editingNodeId = null;
+
+function renderNodeManagement() {
+  renderNodeTypeFilter();
+  renderNodeList();
+}
+
+function renderNodeTypeFilter() {
+  const filter = document.getElementById('nodeTypeFilter');
+  filter.innerHTML = '<option value="">全部类型</option>' +
+    getActiveNodeTypes().map(t => `<option value="${escapeAttr(t)}">${escapeHtml(t)}</option>`).join('');
+}
+
+function renderNodeList() {
+  const filterType = document.getElementById('nodeTypeFilter').value;
+  const sortBy = document.getElementById('nodeSortBy').value;
+  const searchTerm = document.getElementById('nodeSearchInput').value.trim().toLowerCase();
+
+  let nodes = [...state.nodes];
+  if (filterType) nodes = nodes.filter(n => n.type === filterType);
+  if (searchTerm) nodes = nodes.filter(n => n.name.toLowerCase().includes(searchTerm) || n.type.includes(searchTerm) || n.description.toLowerCase().includes(searchTerm));
+
+  nodes.sort((a, b) => {
+    if (sortBy === 'name') return a.name.localeCompare(b.name, 'zh');
+    if (sortBy === 'createdAt') return b.createdAt.localeCompare(a.createdAt);
+    if (sortBy === 'type') return a.type.localeCompare(b.type, 'zh');
+    return 0;
+  });
+
+  const list = document.getElementById('nodeList');
+  list.innerHTML = nodes.map(n => `
+    <div class="list-item ${state.selectedNodeId === n.id ? 'active' : ''}" data-node-id="${n.id}">
+      <div class="item-name">${escapeHtml(n.name)}</div>
+      <div class="item-meta">
+        <span class="item-type-badge">${escapeHtml(n.type)}</span>
+        <span>${getRelationsForNode(n.id).length} 个关联</span>
+        <span>${n.createdAt}</span>
+      </div>
+    </div>`).join('');
+
+  list.querySelectorAll('.list-item').forEach(item => {
+    item.addEventListener('click', () => {
+      state.selectedNodeId = item.dataset.nodeId;
+      renderNodeList();
+      showNodeDetail(state.selectedNodeId);
+    });
+  });
+}
+
+function showNodeDetail(nodeId) {
+  const node = getNodeById(nodeId);
+  if (!node) return;
+  editingNodeId = nodeId;
+  const relations = getRelationsForNode(nodeId);
+  const otherNodes = state.nodes.filter(n => n.id !== nodeId);
+  const activeNodeTypes = getActiveNodeTypes();
+  const activeRelationTypes = getActiveRelationTypes();
+
+  document.getElementById('nodeDetailContent').innerHTML = `
+    <h3 style="font-family:var(--font-display);font-size:20px;margin-bottom:16px;">编辑节点</h3>
+    <div class="form-group"><label>节点名称</label><input type="text" id="editNodeName" value="${escapeHtml(node.name)}"></div>
+    <div class="form-group"><label>节点类型</label>
+      <select id="editNodeType">${activeNodeTypes.map(t => `<option value="${escapeAttr(t)}" ${node.type===t?'selected':''}>${escapeHtml(t)}</option>`).join('')}${!activeNodeTypes.includes(node.type)?`<option value="${escapeAttr(node.type)}" selected>${escapeHtml(node.type)} (旧)</option>`:''}</select>
+    </div>
+    <div class="form-group"><label>描述</label><textarea id="editNodeDesc">${escapeHtml(node.description)}</textarea></div>
+    <div class="form-group"><label>关联关系配置 (一对多)</label>
+      <div id="nodeRelationsEditor">${relations.map(r => {
+        const otherId = r.source===nodeId ? r.target : r.source;
+        const otherNode = getNodeById(otherId);
+        return `<div class="relation-row" data-rel-id="${r.id}">
+          <span style="font-size:12px;white-space:nowrap;color:var(--muted);min-width:50px;">${r.source===nodeId?'→ 关联至':'← 被关联'}</span>
+          <select class="rel-target-select" style="flex:1;">${otherNodes.map(on => `<option value="${on.id}" ${on.id===otherId?'selected':''}>${escapeHtml(on.name)} (${escapeHtml(on.type)})</option>`).join('')}</select>
+          <select class="rel-type-select" style="width:120px;">${activeRelationTypes.map(rt => `<option value="${escapeAttr(rt)}" ${r.type===rt?'selected':''}>${escapeHtml(rt)}</option>`).join('')}${!activeRelationTypes.includes(r.type)?`<option value="${escapeAttr(r.type)}" selected>${escapeHtml(r.type)}</option>`:''}</select>
+          <button class="btn-remove-rel" title="移除">✕</button></div>`;
+      }).join('')}</div>
+      <button class="btn btn-secondary btn-sm" id="btnAddRelationRow" style="margin-top:8px;">+ 添加关联</button>
+    </div>
+    <div class="form-group"><label>关联图谱预览</label><div class="mini-graph-container" id="miniGraphContainer"></div></div>
+    <div class="form-actions">
+      <button class="btn btn-primary" id="btnSaveNode">保存</button>
+      <button class="btn btn-secondary" id="btnCancelNode">取消</button>
+      <button class="btn btn-danger" id="btnDeleteNode" style="margin-left:auto;">删除节点</button>
+    </div>`;
+
+  document.getElementById('btnSaveNode').addEventListener('click', () => saveNodeEdit(nodeId));
+  document.getElementById('btnCancelNode').addEventListener('click', () => { editingNodeId=null; state.selectedNodeId=null; document.getElementById('nodeDetailContent').innerHTML=`<div class="empty-state"><div class="empty-icon">📋</div><p>选择一个节点查看详情</p></div>`; renderNodeList(); });
+  document.getElementById('btnDeleteNode').addEventListener('click', () => deleteNode(nodeId));
+  document.getElementById('btnAddRelationRow').addEventListener('click', () => addRelationRow(nodeId));
+  renderMiniGraph(nodeId);
+}
+
+function saveNodeEdit(nodeId) {
+  const node = getNodeById(nodeId); if (!node) return;
+  const newName = document.getElementById('editNodeName').value.trim();
+  if (!newName) { showToast('节点名称不能为空','error'); return; }
+  node.name = newName;
+  node.type = document.getElementById('editNodeType').value;
+  node.description = document.getElementById('editNodeDesc').value.trim();
+
+  const existingRelIds = new Set();
+  document.querySelectorAll('#nodeRelationsEditor .relation-row').forEach(row => {
+    const relId = row.dataset.relId;
+    const targetSelect = row.querySelector('.rel-target-select');
+    const typeSelect = row.querySelector('.rel-type-select');
+    if (relId && relId !== 'new') {
+      const rel = state.relations.find(r => r.id === relId);
+      if (rel) { if (rel.source===nodeId) rel.target=targetSelect.value; else rel.source=targetSelect.value; rel.type=typeSelect.value; existingRelIds.add(relId); }
+    } else {
+      state.relations.push({ id: generateId('r'), source: nodeId, target: targetSelect.value, type: typeSelect.value, description: '' });
+    }
+  });
+
+  getRelationsForNode(nodeId).forEach(r => { if (!existingRelIds.has(r.id)) state.relations = state.relations.filter(rr => rr.id !== r.id); });
+  saveNodes(); saveRelations();
+  showToast('节点已保存','success');
+  renderNodeList(); showNodeDetail(nodeId);
+  if (state.currentView==='graph') renderGraph();
+}
+
+function deleteNode(nodeId) {
+  if (!confirm('确定要删除此节点吗？所有关联关系也将被删除。')) return;
+  state.nodes = state.nodes.filter(n => n.id !== nodeId);
+  state.relations = state.relations.filter(r => r.source !== nodeId && r.target !== nodeId);
+  saveNodes(); saveRelations();
+  state.selectedNodeId=null; editingNodeId=null;
+  document.getElementById('nodeDetailContent').innerHTML=`<div class="empty-state"><div class="empty-icon">📋</div><p>选择一个节点查看详情</p></div>`;
+  renderNodeList(); if (state.currentView==='graph') renderGraph();
+  showToast('节点已删除','success');
+}
+
+function addRelationRow(nodeId) {
+  const editor = document.getElementById('nodeRelationsEditor');
+  const otherNodes = state.nodes.filter(n => n.id !== nodeId);
+  if (!otherNodes.length) { showToast('没有可关联的节点','error'); return; }
+  const row = document.createElement('div');
+  row.className='relation-row'; row.dataset.relId='new';
+  row.innerHTML=`<span style="font-size:12px;white-space:nowrap;color:var(--muted);min-width:50px;">→ 关联至</span>
+    <select class="rel-target-select" style="flex:1;">${otherNodes.map(on => `<option value="${on.id}">${escapeHtml(on.name)} (${escapeHtml(on.type)})</option>`).join('')}</select>
+    <select class="rel-type-select" style="width:120px;">${getActiveRelationTypes().map(rt => `<option value="${escapeAttr(rt)}">${escapeHtml(rt)}</option>`).join('')}</select>
+    <button class="btn-remove-rel" title="移除">✕</button>`;
+  row.querySelector('.btn-remove-rel').addEventListener('click', () => row.remove());
+  editor.appendChild(row);
+}
+
+function renderMiniGraph(nodeId) {
+  const container = document.getElementById('miniGraphContainer'); if (!container) return;
+  const node = getNodeById(nodeId); if (!node) return;
+  const relations = getRelationsForNode(nodeId);
+  const neighborIds = new Set(); relations.forEach(r => { if (r.source===nodeId) neighborIds.add(r.target); else neighborIds.add(r.source); });
+  const subNodes = [node, ...state.nodes.filter(n => neighborIds.has(n.id))];
+  const subLinks = relations.map(r => ({ source: r.source, target: r.target, type: r.type }));
+  container.innerHTML=''; const w=container.clientWidth, h=container.clientHeight;
+  const svg = d3.select(container).append('svg').attr('width',w).attr('height',h);
+  const g = svg.append('g');
+  const sim = d3.forceSimulation(subNodes).force('link',d3.forceLink(subLinks).id(d=>d.id).distance(80)).force('charge',d3.forceManyBody().strength(-200)).force('center',d3.forceCenter(w/2,h/2)).force('collide',d3.forceCollide(22));
+  g.selectAll('line').data(subLinks).join('line').attr('stroke','var(--border)').attr('stroke-width',1.2);
+  const gn = g.selectAll('g').data(subNodes).join('g');
+  gn.append('circle').attr('r',d=>d.id===nodeId?16:10).attr('fill',d=>getTypeColor(d.type)).attr('stroke','var(--surface)').attr('stroke-width',2);
+  gn.append('text').text(d=>d.name.length>6?d.name.slice(0,5)+'…':d.name).attr('dy',d=>d.id===nodeId?28:20).attr('text-anchor','middle').attr('fill','var(--fg)').attr('font-size','10px').style('pointer-events','none');
+  sim.on('tick',()=>{gn.attr('transform',d=>`translate(${d.x},${d.y})`);});
+}
+
+function initNodeManagement() {
+  document.getElementById('nodeTypeFilter').addEventListener('change',renderNodeList);
+  document.getElementById('nodeSortBy').addEventListener('change',renderNodeList);
+  document.getElementById('nodeSearchInput').addEventListener('input',renderNodeList);
+  document.getElementById('btnAddNode').addEventListener('click', ()=>{
+    const newNode={id:generateId('n'),name:'新节点',type:state.nodeTypes[0]||'疾病',description:'',createdAt:new Date().toISOString().slice(0,10)};
+    state.nodes.push(newNode); saveNodes();
+    state.selectedNodeId=newNode.id; renderNodeList(); showNodeDetail(newNode.id);
+    showToast('新节点已创建','success');
+  });
+}
+
+/* ============================================================
+   Utils
+   ============================================================ */
+function escapeHtml(str) { const d=document.createElement('div'); d.textContent=str; return d.innerHTML; }
+function escapeAttr(str) { return str.replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+/* ============================================================
+   Init
+   ============================================================ */
+function init() {
+  loadData(); loadTheme();
+  initThemeControls();
+  initNavigation();
+  initConfigCategories();
+  initGraphSearch();
+  initNodeManagement();
+  renderGraph();
+
+  let resizeTimeout;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+      if (state.currentView === 'graph') renderGraph();
+      else if (state.currentView === 'nodes' && state.selectedNodeId) renderMiniGraph(state.selectedNodeId);
+    }, 300);
+  });
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
