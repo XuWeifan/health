@@ -1,0 +1,860 @@
+
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>病历质控 · 单条规则全链路追踪</title>
+<style>
+  :root{
+    --c-primary:#165DFF;
+    --c-primary-2:#3C8DFF;
+    --c-primary-weak:#E8F3FF;
+    --c-text:#1D2129;
+    --c-text-2:#4E5969;
+    --c-text-3:#86909C;
+    --c-bg:#F0F2F5;
+    --c-card:#FFFFFF;
+    --c-border:#E5E6EB;
+    --c-border-soft:#F2F3F5;
+    --c-danger:#F53F3F;
+    --c-warn:#FF7D00;
+    --c-success:#00B42A;
+    --c-violet:#722ED1;
+    --c-teal:#0A8F7B;
+    --radius:8px;
+    --radius-sm:4px;
+    --shadow:0 1px 2px rgba(29,33,41,.04),0 4px 16px rgba(29,33,41,.06);
+    --font:'Source Han Sans SC','Noto Sans SC','Noto Sans CJK SC',-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;
+    --font-mono:'JetBrains Mono','SFMono-Regular',ui-monospace,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{width:100%;min-height:100%;}
+  body{
+    background:var(--c-bg);
+    color:var(--c-text);
+    font:14px/1.6 var(--font);
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+  }
+  .app{max-width:1480px;margin:0 auto;padding:20px 24px 44px;}
+
+  /* ---------- Top bar ---------- */
+  .topbar{
+    display:flex;align-items:center;justify-content:space-between;gap:16px;
+    background:var(--c-card);border:1px solid var(--c-border);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:13px 18px;margin-bottom:16px;
+  }
+  .brand-block{display:flex;align-items:center;gap:11px;min-width:0;}
+  .brand-mark{
+    width:34px;height:34px;flex:none;border-radius:9px;
+    background:linear-gradient(135deg,#165DFF,#3C8DFF);color:#fff;
+    display:grid;place-items:center;font-weight:800;font-size:12px;letter-spacing:.5px;
+  }
+  .brand-name{font-size:15px;font-weight:700;color:var(--c-text);line-height:1.3;}
+  .crumb{font-size:12px;color:var(--c-text-3);line-height:1.4;}
+  .topbar-right{display:flex;align-items:center;gap:10px;flex:none;}
+  .engine-pill{
+    font-family:var(--font-mono);font-size:11px;color:var(--c-text-2);
+    background:#F7F8FA;border:1px solid var(--c-border);border-radius:999px;padding:3px 10px;
+  }
+
+  /* ---------- Buttons ---------- */
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:6px;
+    border:1px solid transparent;border-radius:var(--radius-sm);
+    padding:7px 14px;font-size:13px;font-weight:500;font-family:var(--font);
+    cursor:pointer;transition:all .15s;white-space:nowrap;
+  }
+  .btn:disabled{opacity:.6;cursor:not-allowed;}
+  .btn-primary{background:var(--c-primary);color:#fff;}
+  .btn-primary:hover{background:#0E4FD4;}
+  .btn-outline{background:#fff;border-color:var(--c-border);color:var(--c-text);}
+  .btn-outline:hover{border-color:#B7CDF7;color:var(--c-primary);}
+  .btn-danger-outline{background:#fff;border-color:#FFB4AC;color:#D42626;}
+  .btn-danger-outline:hover{background:#FFF5F4;border-color:#F53F3F;}
+  .btn-ghost{background:transparent;color:var(--c-text-2);padding:3px 8px;font-size:12px;border:1px solid transparent;}
+  .btn-ghost:hover{color:var(--c-primary);background:var(--c-primary-weak);}
+  .copy-btn{
+    font-size:11px;color:var(--c-primary);background:var(--c-primary-weak);
+    border:1px solid #D5E5FF;border-radius:4px;padding:1px 7px;cursor:pointer;font-family:var(--font);
+  }
+  .copy-btn:hover{background:#D5E5FF;}
+
+  /* ---------- Overview ---------- */
+  .overview{
+    background:var(--c-card);border:1px solid var(--c-border);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:16px 20px;margin-bottom:16px;
+  }
+  .overview-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px 20px;align-items:start;}
+  .metric{min-width:0;}
+  .metric .k{font-size:11px;color:var(--c-text-3);letter-spacing:.02em;margin-bottom:4px;white-space:nowrap;}
+  .metric .v{font-size:13.5px;font-weight:600;color:var(--c-text);line-height:1.4;min-height:20px;}
+  .metric .v .sub{font-weight:400;color:var(--c-text-2);margin-left:4px;font-size:12px;}
+  .metric .v.mono{font-family:var(--font-mono);font-size:12.5px;}
+  .trace-v{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .m2{font-size:11.5px;color:var(--c-text-3);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .m2.mono{font-family:var(--font-mono);}
+
+  /* ---------- Status tag ---------- */
+  .tag{display:inline-flex;align-items:center;gap:6px;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;line-height:1.7;}
+  .tag-dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex:none;}
+  .tag.passed{color:#0A7D2B;background:rgba(0,180,42,.1);}
+  .tag.triggered{color:#D42626;background:rgba(245,63,63,.1);}
+  .tag.skipped{color:#B85C00;background:rgba(255,125,0,.12);}
+  .tag.error{color:#697079;background:rgba(134,144,156,.16);}
+
+  /* ---------- Pipeline ---------- */
+  .pipeline{
+    display:flex;align-items:stretch;background:var(--c-card);
+    border:1px solid var(--c-border);border-radius:var(--radius);box-shadow:var(--shadow);
+    padding:18px;margin-bottom:16px;overflow-x:auto;
+  }
+  .pnode{
+    flex:1 1 0;min-width:176px;position:relative;
+    border:1px solid var(--c-border);border-left:3px solid transparent;border-radius:10px;
+    background:#fff;padding:12px 14px;cursor:pointer;
+    transition:transform .12s,border-color .15s,box-shadow .15s,background .15s;
+  }
+  .pnode:hover{border-color:#B7CDF7;transform:translateY(-2px);}
+  .pnode.active{border-color:var(--c-primary);background:var(--c-primary-weak);box-shadow:0 0 0 3px rgba(22,93,255,.08);}
+  .pnode.st-pass{border-left-color:var(--c-success);}
+  .pnode.st-trigger{border-left-color:var(--c-danger);}
+  .pnode.st-skip{border-left-color:var(--c-warn);}
+  .pnode.st-error{border-left-color:var(--c-text-3);}
+  .pnode.active{border-left-color:var(--c-primary);}
+  .pnode-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+  .pnode-step{font-family:var(--font-mono);font-size:11px;color:var(--c-text-3);font-weight:700;}
+  .p-status{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;margin-left:auto;}
+  .dot{width:8px;height:8px;border-radius:50%;flex:none;}
+  .st-pass .dot{background:var(--c-success);}
+  .st-trigger .dot{background:var(--c-danger);}
+  .st-skip .dot{background:var(--c-warn);}
+  .st-error .dot{background:var(--c-text-3);}
+  .st-pass .p-status{color:var(--c-success);}
+  .st-trigger .p-status{color:var(--c-danger);}
+  .st-skip .p-status{color:var(--c-warn);}
+  .st-error .p-status{color:var(--c-text-3);}
+  .pnode-name{font-size:14px;font-weight:600;color:var(--c-text);margin-bottom:7px;line-height:1.35;}
+  .pnode-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .chip-dur{
+    font-family:var(--font-mono);font-size:11px;background:#F2F3F5;
+    border:1px solid var(--c-border-soft);color:var(--c-text-2);padding:1px 7px;border-radius:999px;
+  }
+  .chip-dur.large{font-size:12px;padding:2px 10px;}
+  .p-arrow{display:flex;align-items:center;justify-content:center;width:28px;flex:none;color:var(--c-text-3);font-size:17px;}
+  .pipeline.running .pnode{pointer-events:none;filter:saturate(.65);}
+  .pipeline.running .pnode.active{animation:pulse 1s ease-out infinite;}
+  @keyframes pulse{
+    0%{box-shadow:0 0 0 0 rgba(22,93,255,.3);}
+    70%{box-shadow:0 0 0 9px rgba(22,93,255,0);}
+    100%{box-shadow:0 0 0 0 rgba(22,93,255,0);}
+  }
+
+  /* ---------- Detail ---------- */
+  .detail{background:var(--c-card);border:1px solid var(--c-border);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;}
+  .detail-header{
+    display:flex;align-items:center;gap:13px;padding:14px 20px;
+    border-bottom:1px solid var(--c-border);background:linear-gradient(180deg,#FFFFFF,#FAFBFC);
+  }
+  .dh-step{
+    width:32px;height:32px;flex:none;border-radius:8px;
+    background:var(--c-primary-weak);color:var(--c-primary);
+    display:grid;place-items:center;font-family:var(--font-mono);font-weight:700;font-size:13px;
+  }
+  .dh-title{font-size:15px;font-weight:700;color:var(--c-text);line-height:1.35;}
+  .dh-sub{font-size:12px;color:var(--c-text-3);line-height:1.4;}
+  .dh-right{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+  .detail-body{padding:20px;}
+
+  .panel-title{font-size:13.5px;font-weight:700;color:var(--c-text);margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+  .mini-dot{width:8px;height:8px;border-radius:50%;background:var(--c-primary);display:inline-block;}
+
+  .card-box{background:#FBFCFE;border:1px solid var(--c-border);border-radius:8px;padding:14px;min-width:0;}
+  .card-box h4{font-size:12.5px;font-weight:600;color:var(--c-text-2);margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .card-box h4 .src,.card-box h4 .count{font-weight:400;color:var(--c-text-3);font-size:11.5px;}
+  .grid-2{display:grid;grid-template-columns:1.05fr .95fr;gap:18px;align-items:start;}
+  .grid-nlp{display:grid;grid-template-columns:1.15fr .85fr;gap:18px;align-items:start;}
+  .rule-zone{display:grid;grid-template-columns:1fr 1.45fr;gap:18px;align-items:start;}
+  @media(max-width:1180px){.grid-2,.grid-nlp,.rule-zone{grid-template-columns:1fr;}}
+
+  /* ---------- Tables ---------- */
+  .tbl{width:100%;border-collapse:collapse;font-size:12.5px;}
+  .tbl th{text-align:left;padding:7px 10px;background:#F7F8FA;color:var(--c-text-2);font-weight:600;border-bottom:1px solid var(--c-border);white-space:nowrap;}
+  .tbl td{padding:7px 10px;border-bottom:1px solid var(--c-border-soft);color:var(--c-text);vertical-align:top;}
+  .tbl tr:last-child td{border-bottom:none;}
+  .tbl .mono{font-family:var(--font-mono);font-size:11.5px;}
+  .table-scroll{overflow:auto;max-height:360px;}
+  .feat-row{cursor:pointer;transition:background .12s;}
+  .feat-row:hover td{background:#F5F9FF;}
+  .feat-row.row-active td{background:var(--c-primary-weak) !important;}
+  .feat-mention{font-weight:600;}
+  .dash{color:var(--c-text-3);}
+  .neg-tag{color:#D42626;background:#FFF1F0;border:1px solid #FFCCC7;border-radius:4px;padding:1px 7px;font-size:11.5px;font-weight:600;}
+  .no-neg{color:var(--c-text-3);}
+
+  /* Confidence bar */
+  .conf{display:inline-flex;align-items:center;gap:7px;}
+  .conf-bar{width:56px;height:4px;background:var(--c-border);border-radius:2px;overflow:hidden;}
+  .conf-fill{height:100%;background:var(--c-primary);border-radius:2px;}
+  .conf-num{font-family:var(--font-mono);font-size:11px;color:var(--c-text-2);}
+
+  /* ---------- NLP annotations ---------- */
+  .legend{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;}
+  .legend-chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--c-text-2);}
+  .legend-swatch{width:11px;height:11px;border-radius:3px;background:#E8F3FF;border:1px solid #ADC6FF;display:inline-block;}
+  .legend-swatch.diagnosis{background:#F3E8FF;border-color:#D3ADF7;}
+  .legend-swatch.body-part{background:#E8F3FF;border-color:#ADC6FF;}
+  .legend-swatch.procedure{background:#E8FFFB;border-color:#87E8DE;}
+  .legend-swatch.symptom{background:#FFF3E8;border-color:#FFB37B;}
+  .legend-swatch.negated{background:#FFF1F0;border-color:#FFA39E;}
+
+  .note-text{
+    max-height:440px;overflow:auto;line-height:1.95;font-size:13.5px;color:var(--c-text);
+    white-space:pre-wrap;background:#fff;border:1px solid var(--c-border);border-radius:8px;
+    padding:14px 16px;position:relative;
+  }
+  .ann{border-radius:3px;padding:1px 4px;cursor:pointer;transition:box-shadow .12s,background .12s;position:relative;}
+  .ann-diagnosis{background:#F3E8FF;color:#722ED1;border-bottom:1px solid #D3ADF7;}
+  .ann-body-part{background:#E8F3FF;color:#165DFF;border-bottom:1px solid #ADC6FF;}
+  .ann-procedure{background:#E8FFFB;color:#0A8F7B;border-bottom:1px solid #87E8DE;}
+  .ann-symptom{background:#FFF3E8;color:#C2450B;border-bottom:1px solid #FFB37B;}
+  .ann.negated{background:#FFF1F0;color:#B71C1C;text-decoration:line-through;text-decoration-color:var(--c-danger);text-decoration-thickness:1.5px;}
+  .ann.flash{outline:2px solid var(--c-primary);box-shadow:0 0 0 4px rgba(22,93,255,.18);}
+  .hint-tip{font-size:11.5px;color:var(--c-text-3);margin-top:10px;line-height:1.6;}
+
+  /* ---------- Preprocess ---------- */
+  .seg-list{display:flex;flex-direction:column;gap:10px;margin-bottom:6px;}
+  .seg-item{background:#fff;border:1px solid var(--c-border);border-radius:8px;padding:12px 14px;}
+  .seg-head{display:flex;align-items:center;gap:9px;margin-bottom:6px;}
+  .seg-id{font-family:var(--font-mono);font-size:11px;font-weight:700;color:var(--c-primary);background:var(--c-primary-weak);border-radius:4px;padding:1px 8px;}
+  .seg-type{font-size:12px;color:var(--c-text-2);font-weight:600;}
+  .seg-text{font-size:13px;color:var(--c-text);line-height:1.8;}
+
+  /* ---------- Rule tree ---------- */
+  .dsl-block{
+    background:#0D1424;color:#D6E4FF;border-radius:8px;padding:14px 16px;
+    font-family:var(--font-mono);font-size:12px;line-height:1.8;white-space:pre;overflow:auto;
+    transition:max-height .2s;max-height:999px;
+  }
+  .dsl-block.collapsed{max-height:64px;overflow:hidden;}
+  .hit-path{margin-top:12px;padding:10px 12px;background:#FFF5F4;border:1px solid #FFCCC7;border-radius:7px;font-size:12.5px;line-height:1.6;}
+  .hp-label{font-weight:700;color:var(--c-danger);margin-right:8px;}
+  .hp-text{color:#B71C1C;font-family:var(--font-mono);font-size:12px;}
+  .tree{padding:2px 0;}
+  .tree-branch{margin:2px 0 2px 4px;padding:6px 0 6px 16px;border-left:1px dashed var(--c-border);position:relative;}
+  .tree-branch.branch-fail{border-left-color:#FFB4AC;}
+  .tree-opnode{display:flex;align-items:center;gap:9px;margin-bottom:5px;flex-wrap:wrap;}
+  .op-badge{display:inline-block;padding:1px 10px;border-radius:4px;font-family:var(--font-mono);font-size:11px;font-weight:800;color:#fff;background:var(--c-text-2);letter-spacing:.03em;}
+  .op-badge.and{background:var(--c-primary);}
+  .op-badge.or{background:var(--c-violet);}
+  .op-label{font-size:12.5px;color:var(--c-text-2);}
+  .op-result{font-size:11px;font-weight:700;margin-left:auto;}
+  .op-result.ok{color:var(--c-success);}
+  .op-result.bad{color:var(--c-danger);}
+  .cond{display:flex;gap:10px;padding:10px 12px;border:1px solid var(--c-border);border-radius:7px;margin:6px 0;background:#fff;align-items:flex-start;}
+  .cond.pass{background:#F6FFF7;border-color:#B7EBC0;}
+  .cond.fail{background:#FFF5F4;border-color:#FFC9C0;}
+  .cond-icon{width:21px;height:21px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:800;color:#fff;flex:none;margin-top:1px;}
+  .cond.pass .cond-icon{background:var(--c-success);}
+  .cond.fail .cond-icon{background:var(--c-danger);}
+  .cond-main{min-width:0;flex:1;}
+  .cond-field{font-family:var(--font-mono);font-size:12px;font-weight:600;color:var(--c-text);margin-bottom:4px;line-height:1.5;}
+  .cmp{color:var(--c-text-3);font-weight:400;margin-left:6px;}
+  .cond-vals{display:flex;align-items:center;gap:8px;font-size:12px;flex-wrap:wrap;}
+  .val{font-family:var(--font-mono);border:1px solid var(--c-border);background:#fff;padding:1px 8px;border-radius:4px;font-size:11.5px;}
+  .val.bad{color:var(--c-danger);border-color:#FFB4AC;background:#FFF1F0;}
+  .val.good{color:var(--c-success);border-color:#B7EBC0;background:#F6FFF7;}
+  .vs{color:var(--c-text-3);font-size:11px;}
+  .cond-reason{font-size:12px;color:var(--c-danger);margin-top:5px;line-height:1.6;}
+
+  /* ---------- Result ---------- */
+  .defect-card{border:1px solid #FFC9C0;border-radius:10px;background:linear-gradient(180deg,#FFF7F6 0%,#FFFFFF 150px);padding:18px;}
+  .defect-head{display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap;}
+  .defect-name{font-size:16px;font-weight:700;color:var(--c-text);}
+  .badge{display:inline-flex;align-items:center;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;}
+  .badge.severe{color:#D42626;background:rgba(245,63,63,.1);}
+  .badge.penalty{color:#B84700;background:rgba(255,125,0,.12);}
+  .badge.cat{color:#0A8F7B;background:rgba(0,180,42,.08);}
+  .attr-row{display:grid;grid-template-columns:88px 1fr;gap:12px;margin-bottom:12px;align-items:start;}
+  .attr-label{font-size:12.5px;font-weight:600;color:var(--c-text-2);padding-top:2px;}
+  .attr-text{font-size:13px;color:var(--c-text);line-height:1.75;}
+  .attr-text.suggest{background:#F5F9FF;border-left:3px solid var(--c-primary);padding:8px 12px;border-radius:0 6px 6px 0;}
+  .ev-list{margin:0;padding-left:0;list-style:none;display:flex;flex-direction:column;gap:6px;}
+  .ev-list li{display:flex;gap:10px;align-items:baseline;font-size:12.5px;line-height:1.6;background:#fff;border:1px solid var(--c-border);border-radius:6px;padding:7px 10px;}
+  .ev-node{font-family:var(--font-mono);font-size:11px;font-weight:700;color:var(--c-primary);flex:none;}
+  .result-actions{display:flex;gap:10px;margin-top:16px;padding-top:14px;border-top:1px solid var(--c-border);}
+
+  /* ---------- Modal ---------- */
+  .modal-overlay{position:fixed;inset:0;background:rgba(13,18,27,.46);display:none;place-items:center;z-index:2000;padding:24px;}
+  .modal-overlay.open{display:grid;}
+  .modal{width:min(760px,100%);background:#fff;border-radius:12px;padding:20px;box-shadow:0 24px 64px rgba(0,0,0,.28);max-height:88vh;overflow:auto;}
+  .modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  .modal-title{font-size:15px;font-weight:700;color:var(--c-text);}
+  .modal-close{border:0;background:transparent;font-size:22px;color:var(--c-text-3);cursor:pointer;width:30px;height:30px;border-radius:6px;}
+  .modal-close:hover{background:#F2F3F5;color:var(--c-text);}
+  .modal-foot{display:flex;justify-content:flex-end;gap:10px;margin-top:18px;}
+  .snapshot-pre{margin-top:12px;background:#0D1424;color:#DCE5F2;border-radius:8px;padding:16px;font-family:var(--font-mono);font-size:11.5px;line-height:1.7;max-height:68vh;overflow:auto;white-space:pre;}
+  .form-item{margin-bottom:14px;}
+  .form-item label{display:block;font-size:12.5px;font-weight:600;color:var(--c-text-2);margin-bottom:7px;}
+  .radio-row{display:flex;gap:16px;flex-wrap:wrap;}
+  .radio-row label{display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:400;color:var(--c-text);cursor:pointer;}
+  .radio-row input{accent-color:var(--c-primary);}
+  textarea{width:100%;border:1px solid var(--c-border);border-radius:6px;padding:10px 12px;font-family:var(--font);font-size:13px;line-height:1.7;resize:vertical;color:var(--c-text);background:#fff;}
+  textarea:focus{outline:none;border-color:var(--c-primary);box-shadow:0 0 0 3px rgba(22,93,255,.1);}
+
+  /* ---------- Toast ---------- */
+  .toast{
+    position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(16px);
+    background:#1D2129;color:#fff;padding:11px 20px;border-radius:8px;
+    opacity:0;pointer-events:none;transition:all .25s ease;z-index:3000;font-size:13px;
+    box-shadow:0 10px 30px rgba(0,0,0,.22);
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+  @media(max-width:860px){
+    .app{padding:14px 10px 36px;}
+    .overview{padding:14px 16px;}
+    .detail-body{padding:14px;}
+  }
+</style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand-block">
+        <div class="brand-mark">HV</div>
+        <div>
+          <div class="brand-name">病历质控中心</div>
+          <div class="crumb">质控规则引擎 / 单条规则全链路追踪</div>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <span class="engine-pill">QualityEngine · SN-0142</span>
+        <button class="btn btn-outline" data-action="back">返回列表</button>
+      </div>
+    </header>
+
+    <section class="overview" id="overview"></section>
+    <section class="pipeline" id="pipeline"></section>
+
+    <section class="detail">
+      <div class="detail-header" id="detailHeader"></div>
+      <div class="detail-body" id="detailBody"></div>
+    </section>
+  </div>
+
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal" id="modalCard" role="dialog" aria-modal="true"></div>
+  </div>
+  <div class="toast" id="toast" role="status"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ================= 全局工具 ================= */
+  var $ = function(s){ return document.querySelector(s); };
+  var esc = function(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  };
+
+  var STATUS_INFO = {
+    PASSED:    { label:'通过',    cls:'st-pass',    tag:'passed' },
+    TRIGGERED: { label:'触发缺陷', cls:'st-trigger', tag:'triggered' },
+    SKIPPED:   { label:'跳过',    cls:'st-skip',    tag:'skipped' },
+    ERROR:     { label:'异常',    cls:'st-error',   tag:'error' }
+  };
+  var getStatus = function(s){ return STATUS_INFO[s] || STATUS_INFO.ERROR; };
+
+  var TYPE_INFO = {
+    PROCEDURE: { label:'手术操作', cls:'procedure' },
+    BODY_PART: { label:'身体部位', cls:'body-part' },
+    DIAGNOSIS: { label:'诊断',     cls:'diagnosis' },
+    SYMPTOM:   { label:'症状/体征', cls:'symptom' },
+    LATERALITY:{ label:'方位',     cls:'laterality' }
+  };
+
+  /* ================= 快照数据（与 Trace Detail API 同构） ================= */
+  var ORIGINAL_TEXT = "患者张**，男，62岁，因“右侧腹股沟可复性肿物2年”入院。\n术前诊断：右侧腹股沟斜疝。\n\n手术经过：\n患者取平卧位，常规消毒铺巾。于左侧腹股沟区做一斜行切口，长约5cm，逐层切开皮肤、皮下组织，暴露腹外斜肌腱膜。打开提睾肌，游离疝囊至疝囊颈部，见疝囊位于腹壁下动脉外侧。予以疝囊高位结扎，取补片置于精索后方，行无张力修补。检查无活动性出血，清点纱布、器械无误后逐层缝合切口。\n\n术中诊断：右侧腹股沟斜疝。\n术后诊断：右侧腹股沟斜疝。\n\n手术名称：右侧腹股沟疝无张力修补术。";
+
+  var TRACE = {
+    traceId: "TRC-20240618-143511-8F3A",
+    patient: { patientId:"P202406180012", name:"张**", gender:"男", age:62, dept:"普外科", bedNo:"12床" },
+    record:  { recordId:"EMR-20240618-003581", recordType:"手术记录", author:"李**", docTime:"2024-06-18 14:32:05" },
+    rule:    { ruleId:"QC-EMR-0142", ruleName:"手术记录-手术部位与术前诊断一致", ruleVersion:"v3.2.1" },
+    execution:{
+      status:"TRIGGERED", statusLabel:"触发缺陷", totalDurationMs:128,
+      startAt:"2024-06-18 14:35:11.208", endAt:"2024-06-18 14:35:11.336",
+      engine:"QualityEngine v2.7"
+    },
+    pipeline:[
+      { step:1, key:"raw_data",   name:"原始病历数据", status:"PASSED",    durationMs:6,  summary:"读取 1 份手术记录 · 42 项结构化变量" },
+      { step:2, key:"preprocess", name:"预处理",       status:"PASSED",    durationMs:18, summary:"清洗 · 分句 · 医学术语标准化 · 否定/方位修饰归一化" },
+      { step:3, key:"nlp_feature",name:"NLP特征提取", status:"PASSED",    durationMs:47, summary:"抽取 6 个实体 · 识别 1 处否定 · 3 个方位修饰" },
+      { step:4, key:"rule_logic", name:"规则逻辑计算", status:"TRIGGERED", durationMs:52, summary:"命中分支：手术部位侧别(左) ≠ 术前诊断侧别(右)" },
+      { step:5, key:"result",     name:"质控结果输出", status:"TRIGGERED", durationMs:5,  summary:"输出 1 条缺陷记录 · 扣分 -5" }
+    ],
+    nodeDetails:{
+      raw_data:{
+        structuredVariables:[
+          { code:"operation_site",    name:"手术部位", value:"左侧腹股沟区",         source:"手术记录.手术经过", type:"枚举" },
+          { code:"operation_name",    name:"手术名称", value:"右侧腹股沟疝无张力修补术", source:"手术记录.手术名称", type:"术语" },
+          { code:"preop_diagnosis",   name:"术前诊断", value:"右侧腹股沟斜疝",       source:"入院记录.术前诊断", type:"诊断" },
+          { code:"intraop_diagnosis", name:"术中诊断", value:"右侧腹股沟斜疝",       source:"手术记录.术中诊断", type:"诊断" },
+          { code:"postop_diagnosis",  name:"术后诊断", value:"右侧腹股沟斜疝",       source:"手术记录.术后诊断", type:"诊断" },
+          { code:"record_type",       name:"文书类型", value:"手术记录",             source:"EMR.元数据",       type:"元数据" },
+          { code:"dept",              name:"所在科室", value:"普外科",               source:"EMR.元数据",       type:"元数据" },
+          { code:"operator",          name:"术者",     value:"李**",                source:"手术记录.术者签名", type:"人员" }
+        ],
+        originalText: ORIGINAL_TEXT
+      },
+      preprocess:{
+        segments:[
+          { id:"S1", type:"基本信息/主诉", text:"患者张**，男，62岁，因“右侧腹股沟可复性肿物2年”入院。" },
+          { id:"S2", type:"术前诊断", text:"术前诊断：右侧腹股沟斜疝。" },
+          { id:"S3", type:"手术经过", text:"患者取平卧位，常规消毒铺巾。于左侧腹股沟区做一斜行切口，长约5cm，逐层切开皮肤、皮下组织，暴露腹外斜肌腱膜。打开提睾肌，游离疝囊至疝囊颈部，见疝囊位于腹壁下动脉外侧。予以疝囊高位结扎，取补片置于精索后方，行无张力修补。检查无活动性出血，清点纱布、器械无误后逐层缝合切口。" },
+          { id:"S4", type:"术中/术后诊断", text:"术中诊断：右侧腹股沟斜疝。术后诊断：右侧腹股沟斜疝。" }
+        ],
+        normalizations:[
+          { raw:"左侧腹股沟区",   std:"腹股沟区",     type:"解剖部位", rule:"部位归一 + 侧别抽离" },
+          { raw:"右侧腹股沟斜疝", std:"腹股沟斜疝",   type:"诊断",     rule:"术语标准化 + 侧别抽离" },
+          { raw:"无张力修补",     std:"疝无张力修补术", type:"手术操作", rule:"同义词映射" },
+          { raw:"无活动性出血",   std:"出血(否定)",    type:"症状/体征", rule:"否定修饰解析" }
+        ]
+      },
+      nlp_feature:{
+        text: ORIGINAL_TEXT,
+        annotations:[
+          { entityId:"E4", mention:"右侧腹股沟斜疝", type:"DIAGNOSIS", segmentId:"S2", start:36,  end:43,  negated:false },
+          { entityId:"E3", mention:"左侧腹股沟区",   type:"BODY_PART", segmentId:"S3", start:67,  end:73,  negated:false },
+          { entityId:"E1", mention:"疝囊高位结扎",   type:"PROCEDURE", segmentId:"S3", start:138, end:144, negated:false },
+          { entityId:"E2", mention:"无张力修补",     type:"PROCEDURE", segmentId:"S3", start:156, end:161, negated:false },
+          { entityId:"E6", mention:"活动性出血",     type:"SYMPTOM",   segmentId:"S3", start:165, end:170, negated:true  },
+          { entityId:"E5", mention:"右侧腹股沟斜疝", type:"DIAGNOSIS", segmentId:"S4", start:195, end:202, negated:false }
+        ],
+        features:[
+          { entityId:"E1", type:"手术操作", mention:"疝囊高位结扎",  stdTerm:"疝囊高位结扎术", negated:false, modifiers:"—",    side:"—", confidence:0.96 },
+          { entityId:"E2", type:"手术操作", mention:"无张力修补",    stdTerm:"疝无张力修补术", negated:false, modifiers:"—",    side:"—", confidence:0.95 },
+          { entityId:"E3", type:"身体部位", mention:"左侧腹股沟区",  stdTerm:"腹股沟区",       negated:false, modifiers:"方位:左", side:"左", confidence:0.97 },
+          { entityId:"E4", type:"诊断",     mention:"右侧腹股沟斜疝", stdTerm:"腹股沟斜疝",     negated:false, modifiers:"方位:右", side:"右", confidence:0.98 },
+          { entityId:"E5", type:"诊断",     mention:"右侧腹股沟斜疝", stdTerm:"腹股沟斜疝",     negated:false, modifiers:"方位:右", side:"右", confidence:0.97 },
+          { entityId:"E6", type:"症状/体征", mention:"活动性出血",    stdTerm:"出血",           negated:true,  modifiers:"否定:无", side:"—", confidence:0.91 }
+        ]
+      },
+      rule_logic:{
+        dsl:"AND(\n  EXISTS(手术记录.手术名称),\n  EQ(手术记录.手术部位.侧别, 入院记录.术前诊断.侧别),\n  EQ(手术记录.手术部位.部位, 入院记录.术前诊断.部位)\n)",
+        tree:{
+          op:"AND", label:"手术记录关键字段一致性", status:"FAIL",
+          children:[
+            { op:"EXISTS", field:"手术记录.手术名称", comparator:"存在性检查", actualValue:"右侧腹股沟疝无张力修补术", expectedValue:"非空", status:"PASS" },
+            { op:"EQ", field:"手术记录.手术部位.侧别", comparator:"等于", actualValue:"左", expectedLabel:"术前诊断.侧别", expectedValue:"右", status:"FAIL", reason:"手术经过记录为「左」，术前诊断为「右」，侧别不一致" },
+            { op:"EQ", field:"手术记录.手术部位.部位", comparator:"等于", actualValue:"腹股沟区", expectedLabel:"术前诊断.部位", expectedValue:"腹股沟区", status:"PASS" }
+          ]
+        },
+        hitPath:"AND → EQ(手术部位.侧别 = 术前诊断.侧别)：实际 左 ≠ 右"
+      },
+      result:{
+        defect:{ defectCode:"DEFECT-0142-01", name:"手术记录手术部位与术前诊断不一致", level:"严重", category:"关键要素不一致", scorePenalty:-5 },
+        attribution:"NLP 从「手术经过」中识别手术部位为「左侧腹股沟区」，侧别特征=左；而术前/术中/术后诊断侧别特征=右。规则在侧别一致性条件上判定失败，触发缺陷。",
+        evidence:[
+          { node:3, ref:"特征 E3", text:"左侧腹股沟区 → 身体部位，侧别=左，置信度 0.97" },
+          { node:1, ref:"operation_site", text:"手术部位 = 左侧腹股沟区" },
+          { node:4, ref:"EQ 条件", text:"手术部位.侧别 左 ≠ 术前诊断.侧别 右" }
+        ],
+        suggestion:"请核实手术记录中手术部位侧别是否笔误（左/右），修正后重跑质控。"
+      }
+    }
+  };
+
+  /* ================= 状态 ================= */
+  var activeNode = "raw_data";
+  var dslOpen = true;
+  var rerunning = false;
+  var toastTimer = null;
+
+  /* ================= 渲染 —— 概览 ================= */
+  function renderOverview(){
+    var p = TRACE.patient, r = TRACE.record, rule = TRACE.rule, ex = TRACE.execution;
+    var st = getStatus(ex.status);
+    $("#overview").innerHTML =
+      '<div class="overview-metrics">' +
+        '<div class="metric"><div class="k">患者</div>' +
+          '<div class="v">' + esc(p.name) + '<span class="sub">' + esc(p.gender) + ' · ' + p.age + '岁</span></div>' +
+          '<div class="m2">' + esc(p.patientId) + ' · ' + esc(p.dept) + ' ' + esc(p.bedNo) + '</div></div>' +
+        '<div class="metric"><div class="k">病历</div>' +
+          '<div class="v">' + esc(r.recordType) + '</div>' +
+          '<div class="m2 mono">' + esc(r.recordId) + '</div>' +
+          '<div class="m2">' + esc(r.docTime) + ' · ' + esc(r.author) + '</div></div>' +
+        '<div class="metric"><div class="k">质控规则</div>' +
+          '<div class="v">' + esc(rule.ruleName) + '</div>' +
+          '<div class="m2 mono">' + esc(rule.ruleId) + ' · ' + esc(rule.ruleVersion) + '</div></div>' +
+        '<div class="metric"><div class="k">Trace ID（运行流水号）</div>' +
+          '<div class="v mono trace-v">' + esc(TRACE.traceId) + ' <button class="copy-btn" data-action="copy-trace">复制</button></div>' +
+          '<div class="m2">' + esc(ex.startAt) + ' → ' + esc(ex.endAt) + '</div></div>' +
+        '<div class="metric"><div class="k">执行引擎</div>' +
+          '<div class="v">' + esc(ex.engine) + '</div>' +
+          '<div class="m2 mono">总耗时 ' + ex.totalDurationMs + ' ms</div></div>' +
+        '<div class="metric"><div class="k">执行状态</div>' +
+          '<div class="v"><span class="tag ' + st.tag + '"><span class="tag-dot"></span>' + st.label + '</span></div></div>' +
+      '</div>';
+  }
+
+  /* ================= 渲染 —— Pipeline ================= */
+  function renderPipeline(){
+    var html = '';
+    TRACE.pipeline.forEach(function(p, i){
+      var st = getStatus(p.status);
+      var active = p.key === activeNode ? ' active' : '';
+      html +=
+        '<div class="pnode ' + st.cls + active + '" data-key="' + p.key + '" data-action="node">' +
+          '<div class="pnode-head"><span class="pnode-step">' + p.step + '</span>' +
+            '<span class="p-status"><span class="dot"></span>' + st.label + '</span></div>' +
+          '<div class="pnode-name">' + esc(p.name) + '</div>' +
+          '<div class="pnode-meta"><span class="chip-dur">' + p.durationMs + ' ms</span></div>' +
+        '</div>';
+      if(i < TRACE.pipeline.length - 1) html += '<div class="p-arrow">→</div>';
+    });
+    $("#pipeline").innerHTML = html;
+  }
+
+  /* ================= 渲染 —— 详情 ================= */
+  function renderDetail(){
+    var p = TRACE.pipeline.filter(function(x){ return x.key === activeNode; })[0];
+    var st = getStatus(p.status);
+    var header =
+      '<span class="dh-step">' + p.step + '</span>' +
+      '<div><div class="dh-title">' + esc(p.name) + '</div><div class="dh-sub">' + esc(p.summary || '') + '</div></div>' +
+      '<span class="tag ' + st.tag + '"><span class="tag-dot"></span>' + st.label + '</span>' +
+      '<span class="chip-dur large">' + p.durationMs + ' ms</span>' +
+      '<div class="dh-right">' +
+        '<button class="btn btn-outline" data-action="json">查看全链路 JSON</button>';
+    if(activeNode === 'result'){
+      header +=
+        '<button class="btn btn-danger-outline" data-action="feedback">误报反馈</button>' +
+        '<button class="btn btn-primary" data-action="rerun">规则调试重跑</button>';
+    }
+    header += '</div>';
+    $("#detailHeader").innerHTML = header;
+
+    var panel = PANELS[activeNode] || PANELS.raw_data;
+    $("#detailBody").innerHTML = panel();
+  }
+
+  /* ---------- 节点1：原始数据 ---------- */
+  function panelRawData(){
+    var d = TRACE.nodeDetails.raw_data;
+    var rows = d.structuredVariables.map(function(v){
+      return '<tr><td class="mono">' + esc(v.code) + '</td><td>' + esc(v.name) + '</td><td><strong>' + esc(v.value) + '</strong></td><td class="mono">' + esc(v.source) + '</td><td>' + esc(v.type) + '</td></tr>';
+    }).join('');
+    return '<div class="grid-2">' +
+      '<div class="card-box"><h4>结构化变量表 <span class="count">' + d.structuredVariables.length + ' 项</span></h4>' +
+        '<table class="tbl"><thead><tr><th>变量编码</th><th>变量名</th><th>当前值</th><th>数据来源</th><th>类型</th></tr></thead><tbody>' + rows + '</tbody></table>' +
+      '</div>' +
+      '<div class="card-box"><h4>病历原文 <span class="src">' + esc(TRACE.record.recordType) + ' · ' + esc(TRACE.record.recordId) + '</span></h4>' +
+        '<div class="note-text">' + esc(d.originalText) + '</div>' +
+      '</div>' +
+    '</div>';
+  }
+
+  /* ---------- 节点2：预处理 ---------- */
+  function panelPreprocess(){
+    var d = TRACE.nodeDetails.preprocess;
+    var segs = d.segments.map(function(s){
+      return '<div class="seg-item"><div class="seg-head"><span class="seg-id">' + s.id + '</span><span class="seg-type">' + esc(s.type) + '</span></div><div class="seg-text">' + esc(s.text) + '</div></div>';
+    }).join('');
+    var norms = d.normalizations.map(function(n){
+      return '<tr><td>' + esc(n.raw) + '</td><td><strong>' + esc(n.std) + '</strong></td><td>' + esc(n.type) + '</td><td class="mono">' + esc(n.rule) + '</td></tr>';
+    }).join('');
+    return '<div class="panel-title"><span class="mini-dot"></span>预处理快照</div>' +
+      '<div class="seg-list">' + segs + '</div>' +
+      '<div class="card-box" style="margin-top:16px"><h4>术语标准化 / 修饰归一化</h4>' +
+        '<table class="tbl"><thead><tr><th>原文</th><th>标准化结果</th><th>类型</th><th>归一化规则</th></tr></thead><tbody>' + norms + '</tbody></table>' +
+      '</div>';
+  }
+
+  /* ---------- 节点3：NLP特征提取 ---------- */
+  function findOffset(text, mention, occ){
+    var idx = -1, n = 0;
+    while(n < occ){ idx = text.indexOf(mention, idx + 1); if(idx === -1) return -1; n++; }
+    return idx;
+  }
+
+  function renderAnnotatedText(text, annotations){
+    var spans = [];
+    annotations.forEach(function(a){
+      var start = (a.start != null && a.end != null) ? a.start : findOffset(text, a.mention, a.occ || 1);
+      var end = (a.start != null && a.end != null) ? a.end : (start >= 0 ? start + a.mention.length : -1);
+      if(start >= 0 && end > start) spans.push({ start:start, end:end, a:a });
+    });
+    spans.sort(function(x,y){ return x.start - y.start; });
+
+    var html = '', cursor = 0;
+    spans.forEach(function(o){
+      if(o.start > cursor) html += esc(text.slice(cursor, o.start));
+      var info = TYPE_INFO[o.a.type] || TYPE_INFO.LATERALITY;
+      html += '<span class="ann ann-' + info.cls + (o.a.negated ? ' negated' : '') + '" data-entity="' + o.a.entityId + '" data-action="ann" title="' + esc(info.label) + ' · ' + o.a.entityId + '">' + esc(text.slice(o.start, o.end)) + '</span>';
+      cursor = o.end;
+    });
+    if(cursor < text.length) html += esc(text.slice(cursor));
+    return html;
+  }
+
+  function panelNLP(){
+    var d = TRACE.nodeDetails.nlp_feature;
+    var legend = '';
+    Object.keys(TYPE_INFO).forEach(function(key){
+      var info = TYPE_INFO[key];
+      legend += '<span class="legend-chip"><span class="legend-swatch ' + info.cls + '"></span>' + info.label + '</span>';
+    });
+    legend += '<span class="legend-chip"><span class="legend-swatch negated"></span>否定修饰</span>';
+
+    var textHtml = renderAnnotatedText(d.text, d.annotations);
+
+    var rows = d.features.map(function(f){
+      return '<tr class="feat-row" data-entity="' + f.entityId + '" data-action="feat" title="点击定位到原文">' +
+        '<td><span class="feat-mention">' + esc(f.mention) + '</span></td>' +
+        '<td>' + esc(f.type) + '</td>' +
+        '<td>' + esc(f.stdTerm) + '</td>' +
+        '<td>' + esc(f.modifiers) + '</td>' +
+        '<td>' + (f.negated ? '<span class="neg-tag">否定</span>' : '<span class="no-neg">否</span>') + '</td>' +
+        '<td><div class="conf"><div class="conf-bar"><div class="conf-fill" style="width:' + Math.round(f.confidence * 100) + '%"></div></div><span class="conf-num">' + (f.confidence * 100).toFixed(0) + '%</span></div></td>' +
+      '</tr>';
+    }).join('');
+
+    return '<div class="legend">' + legend + '</div>' +
+      '<div class="grid-nlp">' +
+        '<div class="card-box"><h4>病历原文 · 实体/修饰词标注 <span class="src">点击实体可联动右侧特征项</span></h4>' +
+          '<div class="note-text" id="nlpText">' + textHtml + '</div>' +
+        '</div>' +
+        '<div class="card-box"><h4>NLP 特征抽取结果 <span class="count">' + d.features.length + ' 个特征</span></h4>' +
+          '<div class="table-scroll"><table class="tbl feat-tbl"><thead><tr><th>实体</th><th>类型</th><th>标准词</th><th>修饰词</th><th>否定</th><th>置信度</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+          '<div class="hint-tip">点击表格行可在原文中定位高亮；点击原文实体可反向定位特征行。</div>' +
+        '</div>' +
+      '</div>';
+  }
+
+  /* ---------- 节点4：规则逻辑计算 ---------- */
+  function renderTreeNode(n){
+    if(n.children && n.children.length){
+      var ok = n.status !== 'FAIL';
+      var badge = n.op === 'AND' ? 'and' : 'or';
+      return '<div class="tree-branch' + (ok ? '' : ' branch-fail') + '">' +
+        '<div class="tree-opnode"><span class="op-badge ' + badge + '">' + esc(n.op) + '</span>' +
+          (n.label ? '<span class="op-label">' + esc(n.label) + '</span>' : '') +
+          '<span class="op-result ' + (ok ? 'ok' : 'bad') + '">' + (ok ? '通过' : '未通过') + '</span></div>' +
+        '<div class="tree-children">' + n.children.map(renderTreeNode).join('') + '</div>' +
+      '</div>';
+    }
+    var ok = n.status !== 'FAIL';
+    var cls = ok ? 'pass' : 'fail';
+    var icon = ok ? '✓' : '✕';
+    return '<div class="cond ' + cls + '"><span class="cond-icon">' + icon + '</span>' +
+      '<div class="cond-main">' +
+        '<div class="cond-field">' + esc(n.field) + '<span class="cmp">' + esc(n.comparator) + '</span></div>' +
+        '<div class="cond-vals">' +
+          '<span class="val actual ' + (ok ? 'good' : 'bad') + '">实际：' + esc(n.actualValue) + '</span>' +
+          '<span class="vs">vs</span>' +
+          '<span class="val expected">' + esc(n.expectedLabel || '阈值') + '：' + esc(n.expectedValue) + '</span>' +
+        '</div>' +
+        (n.reason ? '<div class="cond-reason">' + esc(n.reason) + '</div>' : '') +
+      '</div></div>';
+  }
+
+  function panelRuleLogic(){
+    var d = TRACE.nodeDetails.rule_logic;
+    return '<div class="rule-zone">' +
+      '<div class="card-box"><h4>规则 DSL <button class="btn btn-ghost" data-action="toggle-dsl">收起</button></h4>' +
+        '<pre class="dsl-block" id="dslBlock">' + esc(d.dsl) + '</pre>' +
+        '<div class="hit-path"><span class="hp-label">命中路径</span><span class="hp-text">' + esc(d.hitPath) + '</span></div>' +
+      '</div>' +
+      '<div class="card-box"><h4>规则逻辑树 <span class="src">AND/OR 递归渲染 · 绿＝满足 红＝不满足</span></h4>' +
+        '<div class="tree">' + renderTreeNode(d.tree) + '</div>' +
+      '</div>' +
+    '</div>';
+  }
+
+  /* ---------- 节点5：质控结果 ---------- */
+  function panelResult(){
+    var d = TRACE.nodeDetails.result;
+    var ev = d.evidence.map(function(e){
+      return '<li><span class="ev-node">节点' + e.node + ' · ' + esc(e.ref) + '</span><span class="ev-text">' + esc(e.text) + '</span></li>';
+    }).join('');
+    return '<div class="defect-card">' +
+      '<div class="defect-head"><span class="defect-name">' + esc(d.defect.name) + '</span>' +
+        '<span class="badge severe">' + esc(d.defect.level) + '</span>' +
+        '<span class="badge penalty">扣分 ' + d.defect.scorePenalty + '</span>' +
+        '<span class="badge cat">' + esc(d.defect.category) + '</span></div>' +
+      '<div class="attr-row"><div class="attr-label">归因说明</div><div class="attr-text">' + esc(d.attribution) + '</div></div>' +
+      '<div class="attr-row"><div class="attr-label">证据链</div><ol class="ev-list">' + ev + '</ol></div>' +
+      '<div class="attr-row"><div class="attr-label">处置建议</div><div class="attr-text suggest">' + esc(d.suggestion) + '</div></div>' +
+      '<div class="result-actions">' +
+        '<button class="btn btn-danger-outline" data-action="feedback">误报反馈</button>' +
+        '<button class="btn btn-primary" data-action="rerun">规则调试重跑</button>' +
+      '</div>' +
+    '</div>';
+  }
+
+  var PANELS = {
+    raw_data: panelRawData,
+    preprocess: panelPreprocess,
+    nlp_feature: panelNLP,
+    rule_logic: panelRuleLogic,
+    result: panelResult
+  };
+
+  /* ================= 交互 ================= */
+  function switchNode(key){
+    if(key === activeNode) return;
+    activeNode = key;
+    dslOpen = true;
+    renderPipeline();
+    renderDetail();
+  }
+
+  function flashEntity(entityId){
+    var span = document.querySelector('.ann[data-entity="' + entityId + '"]');
+    var row = document.querySelector('.feat-row[data-entity="' + entityId + '"]');
+    if(span){
+      var box = span.closest('.note-text');
+      if(box) box.scrollTop = Math.max(0, span.offsetTop - box.clientHeight / 2);
+      span.classList.remove('flash');
+      void span.offsetWidth;
+      span.classList.add('flash');
+      setTimeout(function(){ span.classList.remove('flash'); }, 1500);
+    }
+    if(row){
+      var scroll = row.closest('.table-scroll');
+      if(scroll) scroll.scrollTop = Math.max(0, row.offsetTop - scroll.clientHeight / 2);
+      row.classList.add('row-active');
+      setTimeout(function(){ row.classList.remove('row-active'); }, 1500);
+    }
+  }
+
+  function showToast(msg){
+    var t = $("#toast");
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ t.classList.remove('show'); }, 2400);
+  }
+
+  function copyTrace(){
+    var txt = TRACE.traceId;
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(txt).then(function(){ showToast('Trace ID 已复制'); }, function(){
+        showToast('复制失败，请手动选择：' + txt);
+      });
+    } else {
+      var ta = document.createElement('textarea');
+      ta.value = txt;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try{ document.execCommand('copy'); showToast('Trace ID 已复制'); }
+      catch(e){ showToast('复制失败，请手动选择：' + txt); }
+      document.body.removeChild(ta);
+    }
+  }
+
+  function openJsonModal(){
+    var snap = JSON.stringify(TRACE, null, 2);
+    $("#modalCard").innerHTML =
+      '<div class="modal-head"><span class="modal-title">全链路快照 JSON（Trace Detail API 响应）</span>' +
+      '<button class="modal-close" data-action="close-modal">×</button></div>' +
+      '<pre class="snapshot-pre">' + esc(snap) + '</pre>';
+    $("#modalOverlay").classList.add('open');
+  }
+
+  function openFeedbackModal(){
+    $("#modalCard").innerHTML =
+      '<div class="modal-head"><span class="modal-title">误报反馈</span>' +
+      '<button class="modal-close" data-action="close-modal">×</button></div>' +
+      '<div class="modal-body">' +
+        '<div class="form-item"><label>反馈类型</label><div class="radio-row">' +
+          '<label><input type="radio" name="fbType" value="规则误判" checked>规则误判</label>' +
+          '<label><input type="radio" name="fbType" value="边界情况">边界情况</label>' +
+          '<label><input type="radio" name="fbType" value="临床可接受差异">临床可接受差异</label>' +
+          '<label><input type="radio" name="fbType" value="其他">其他</label>' +
+        '</div></div>' +
+        '<div class="form-item"><label>补充说明</label>' +
+          '<textarea id="fbNote" rows="4" placeholder="请描述该缺陷为何属于误报，便于规则负责人复核。"></textarea></div>' +
+      '</div>' +
+      '<div class="modal-foot">' +
+        '<button class="btn btn-outline" data-action="close-modal">取消</button>' +
+        '<button class="btn btn-primary" data-action="submit-feedback">提交反馈</button>' +
+      '</div>';
+    $("#modalOverlay").classList.add('open');
+  }
+
+  function closeModal(){
+    $("#modalOverlay").classList.remove('open');
+    $("#modalCard").innerHTML = '';
+  }
+
+  function submitFeedback(){
+    var checked = document.querySelector('input[name="fbType"]:checked');
+    var type = checked ? checked.value : '规则误判';
+    var note = $("#fbNote");
+    var text = note ? note.value.trim() : '';
+    var suffix = text ? ' · ' + (text.length > 18 ? text.slice(0, 18) + '…' : text) : '';
+    closeModal();
+    showToast('反馈已提交：' + type + ' · 工单 FB-20240618-017' + suffix);
+  }
+
+  function toggleDsl(){
+    dslOpen = !dslOpen;
+    var block = $("#dslBlock");
+    var btn = document.querySelector('[data-action="toggle-dsl"]');
+    if(block) block.classList.toggle('collapsed', !dslOpen);
+    if(btn) btn.textContent = dslOpen ? '收起' : '展开';
+  }
+
+  function startRerun(){
+    if(rerunning) return;
+    rerunning = true;
+    var btn = document.querySelector('[data-action="rerun"]');
+    if(btn){ btn.disabled = true; btn.textContent = '重跑中…'; }
+    $("#pipeline").classList.add('running');
+    showToast('规则重新执行中…');
+    setTimeout(function(){
+      $("#pipeline").classList.remove('running');
+      if(btn){ btn.disabled = false; btn.textContent = '规则调试重跑'; }
+      showToast('重跑完成：结果未变化（仍触发缺陷）');
+      rerunning = false;
+    }, 1400);
+  }
+
+  /* ================= 事件委托 ================= */
+  document.addEventListener('click', function(e){
+    var el = e.target.closest('[data-action]');
+    if(!el) return;
+    var action = el.getAttribute('data-action');
+    if(action === 'node'){ switchNode(el.getAttribute('data-key')); }
+    else if(action === 'feat'){ flashEntity(el.getAttribute('data-entity')); }
+    else if(action === 'ann'){ flashEntity(el.getAttribute('data-entity')); }
+    else if(action === 'json'){ openJsonModal(); }
+    else if(action === 'feedback'){ openFeedbackModal(); }
+    else if(action === 'rerun'){ startRerun(); }
+    else if(action === 'copy-trace'){ copyTrace(); }
+    else if(action === 'close-modal'){ closeModal(); }
+    else if(action === 'submit-feedback'){ submitFeedback(); }
+    else if(action === 'toggle-dsl'){ toggleDsl(); }
+    else if(action === 'back'){ showToast('已返回：质控规则追踪列表'); }
+  });
+
+  $("#modalOverlay").addEventListener('click', function(e){
+    if(e.target === $("#modalOverlay")) closeModal();
+  });
+
+  /* ================= 初始化 ================= */
+  renderOverview();
+  renderPipeline();
+  renderDetail();
+})();
+</script>
+</body>
+</html>
