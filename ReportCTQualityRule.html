@@ -1,0 +1,2024 @@
+
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Health View OS · 实时质控规则引擎</title>
+  <style>
+    :root {
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --topbar-h: 60px;
+      --nav-h: 46px;
+      --sidebar-w: 294px;
+      --font-ui: "Source Han Sans SC", "Noto Sans CJK SC", "PingFang SC", -apple-system, "Segoe UI", sans-serif;
+      --font-mono: "JetBrains Mono", "SFMono-Regular", ui-monospace, Consolas, "Courier New", monospace;
+    }
+    html[data-theme="dark"] {
+      color-scheme: dark;
+      --bg: #0B0F1A;
+      --bg-soft: #0F1421;
+      --surface: #131A2A;
+      --surface-2: #1A2235;
+      --surface-3: #212A40;
+      --border: #232C44;
+      --border-strong: #32405E;
+      --fg: #E6EAF2;
+      --fg-2: #C4CBD8;
+      --muted: #8B94A8;
+      --muted-2: #68718A;
+      --primary: #4080FF;
+      --primary-hover: #5C94FF;
+      --primary-soft: rgba(64, 128, 255, 0.16);
+      --primary-border: rgba(64, 128, 255, 0.55);
+      --error: #FF5C5C;
+      --error-strong: #FF7A7A;
+      --error-soft: rgba(255, 92, 92, 0.14);
+      --warn: #FFB340;
+      --warn-strong: #FFC46B;
+      --warn-soft: rgba(255, 179, 64, 0.14);
+      --success: #3ECF8E;
+      --success-soft: rgba(62, 207, 142, 0.14);
+      --info: #4DC9F6;
+      --info-soft: rgba(77, 201, 246, 0.14);
+      --shadow: 0 12px 32px rgba(0, 0, 0, 0.32);
+      --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.20);
+    }
+    html[data-theme="light"] {
+      color-scheme: light;
+      --bg: #F7F8FA;
+      --bg-soft: #F1F3F6;
+      --surface: #FFFFFF;
+      --surface-2: #F7F9FC;
+      --surface-3: #EEF1F6;
+      --border: #E5E6EB;
+      --border-strong: #C9CDD4;
+      --fg: #1D2129;
+      --fg-2: #4E5969;
+      --muted: #86909C;
+      --muted-2: #A7ADB6;
+      --primary: #165DFF;
+      --primary-hover: #0E4CE0;
+      --primary-soft: #E8F3FF;
+      --primary-border: #9DC2FF;
+      --error: #F53F3F;
+      --error-strong: #D92D2D;
+      --error-soft: #FFECE8;
+      --warn: #E8790A;
+      --warn-strong: #C96A00;
+      --warn-soft: #FFF3E8;
+      --success: #00B42A;
+      --success-soft: #E8FFEA;
+      --info: #0FA7D8;
+      --info-soft: #E8F7FC;
+      --shadow: 0 12px 28px rgba(29, 33, 41, 0.06);
+      --shadow-sm: 0 1px 4px rgba(29, 33, 41, 0.04);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    [hidden] { display: none !important; }
+    html, body { width: 100%; height: 100%; }
+    body {
+      font-family: var(--font-ui);
+      font-size: 13.5px;
+      color: var(--fg);
+      background: var(--bg);
+      line-height: 1.55;
+      overflow: hidden;
+      transition: background 0.25s, color 0.25s;
+    }
+    button, input, textarea, select { font: inherit; color: inherit; }
+    button { cursor: pointer; }
+    .mono { font-family: var(--font-mono); }
+
+    /* ============ 顶栏 ============ */
+    .topbar {
+      height: var(--topbar-h);
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 0 18px;
+      position: relative;
+      z-index: 60;
+    }
+    .brand { display: flex; align-items: center; gap: 10px; min-width: 248px; }
+    .brand-logo {
+      width: 34px; height: 34px;
+      border-radius: 9px;
+      background: linear-gradient(145deg, var(--primary), var(--primary-hover));
+      display: grid; place-items: center;
+      box-shadow: 0 4px 12px var(--primary-soft);
+      flex: none;
+    }
+    .brand-logo svg { width: 20px; height: 20px; }
+    .brand-text { display: flex; flex-direction: column; line-height: 1.2; }
+    .brand-title { font-weight: 700; font-size: 14.5px; letter-spacing: 0.01em; }
+    .brand-sub { font-size: 11.5px; color: var(--muted); margin-top: 3px; }
+    .topbar-search {
+      flex: 1;
+      max-width: 420px;
+      position: relative;
+    }
+    .topbar-search svg {
+      position: absolute; left: 11px; top: 50%;
+      width: 15px; height: 15px;
+      transform: translateY(-50%);
+      color: var(--muted);
+    }
+    .topbar-search input {
+      width: 100%;
+      height: 34px;
+      border-radius: 9px;
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      padding: 0 12px 0 34px;
+      font-size: 12.5px;
+      transition: 0.18s;
+    }
+    .topbar-search input:focus {
+      outline: none;
+      border-color: var(--primary-border);
+      box-shadow: 0 0 0 3px var(--primary-soft);
+    }
+    .topbar-actions { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+    .env-chip {
+      height: 28px;
+      display: inline-flex; align-items: center;
+      padding: 0 10px;
+      border-radius: 999px;
+      background: var(--success-soft);
+      color: var(--success);
+      font-size: 11.5px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .env-chip .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); margin-right: 6px; }
+    .doctor {
+      display: flex; align-items: center; gap: 8px;
+      padding-left: 14px;
+      border-left: 1px solid var(--border);
+    }
+    .doctor-avatar {
+      width: 30px; height: 30px;
+      border-radius: 50%;
+      background: linear-gradient(145deg, #1E8FFF, #165DFF);
+      color: #fff;
+      display: grid; place-items: center;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .doctor-name { font-size: 12px; color: var(--fg-2); line-height: 1.2; }
+    .doctor-role { font-size: 10.5px; color: var(--muted); }
+
+    /* 主题切换 */
+    .theme-toggle {
+      display: flex;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 2px;
+    }
+    .theme-toggle button {
+      height: 26px;
+      padding: 0 10px;
+      border: 0;
+      border-radius: 7px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 11.5px;
+      transition: 0.16s;
+    }
+    .theme-toggle button.active {
+      background: var(--surface-3);
+      color: var(--fg);
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* ============ 一级导航 ============ */
+    .mainnav {
+      height: var(--nav-h);
+      background: var(--bg-soft);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: stretch;
+      gap: 4px;
+      padding: 0 18px;
+    }
+    .mainnav-item {
+      position: relative;
+      padding: 0 16px;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      font-size: 13px;
+      white-space: nowrap;
+      transition: 0.16s;
+    }
+    .mainnav-item:hover { color: var(--fg); }
+    .mainnav-item.active { color: var(--primary); font-weight: 600; }
+    .mainnav-item.active::after {
+      content: '';
+      position: absolute;
+      left: 12px; right: 12px; bottom: 0;
+      height: 2px;
+      background: var(--primary);
+      border-radius: 2px 2px 0 0;
+    }
+    .mainnav-right { margin-left: auto; display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 11.5px; }
+    .sync-indicator { display: inline-flex; align-items: center; gap: 6px; }
+    .sync-indicator .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); box-shadow: 0 0 0 3px var(--success-soft); }
+
+    /* ============ 规则中心 ============ */
+    .workspace {
+      display: grid;
+      grid-template-columns: var(--sidebar-w) 1fr;
+      height: calc(100vh - var(--topbar-h) - var(--nav-h));
+      background: var(--bg);
+    }
+    .rule-sidebar {
+      border-right: 1px solid var(--border);
+      background: var(--surface);
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .sidebar-head {
+      padding: 14px 14px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .sidebar-title { font-size: 13px; font-weight: 600; }
+    .sidebar-count {
+      min-width: 20px; height: 20px;
+      padding: 0 6px;
+      border-radius: 999px;
+      background: var(--primary-soft);
+      color: var(--primary);
+      font-size: 11px;
+      font-weight: 600;
+      display: grid; place-items: center;
+    }
+    .sidebar-filter { padding: 0 14px 10px; position: relative; }
+    .sidebar-filter svg {
+      position: absolute; left: 25px; top: 50%;
+      width: 14px; height: 14px;
+      transform: translateY(-50%);
+      color: var(--muted);
+    }
+    .sidebar-filter input {
+      width: 100%;
+      height: 32px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface-2);
+      padding: 0 10px 0 32px;
+      font-size: 12px;
+    }
+    .sidebar-filter input:focus { outline: none; border-color: var(--primary-border); box-shadow: 0 0 0 3px var(--primary-soft); }
+    .rule-stat {
+      display: flex;
+      gap: 8px;
+      padding: 0 14px 10px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .rule-stat .st { display: inline-flex; align-items: center; gap: 4px; }
+    .rule-stat .st i { width: 6px; height: 6px; border-radius: 50%; font-style: normal; }
+    .st-enabled i { background: var(--success); }
+    .st-shadow i { background: var(--warn); }
+    .rule-list { flex: 1; overflow-y: auto; border-top: 1px solid var(--border); }
+    .rule-item {
+      position: relative;
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      transition: 0.15s;
+    }
+    .rule-item:hover { background: var(--bg-soft); }
+    .rule-item.selected { background: var(--primary-soft); }
+    .rule-item.selected::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 3px;
+      background: var(--primary);
+    }
+    .rule-item-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .rule-item-name { font-size: 12.5px; font-weight: 600; line-height: 1.35; }
+    .rule-item-sub { font-size: 11px; color: var(--muted); margin-top: 3px; }
+    .rule-item-meta { display: flex; align-items: center; gap: 5px; margin-top: 7px; flex-wrap: wrap; }
+    .sidebar-footer {
+      padding: 12px 14px 14px;
+      border-top: 1px solid var(--border);
+      background: var(--surface-2);
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+    .new-rule-btn {
+      width: calc(100% - 28px);
+      margin: 0 14px 14px;
+      height: 34px;
+      border: 1px dashed var(--border-strong);
+      border-radius: 9px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: 0.16s;
+    }
+    .new-rule-btn:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-soft); }
+    .new-rule-btn svg { width: 14px; height: 14px; }
+
+    .workspace-main {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      min-height: 0;
+      background: var(--bg);
+    }
+    .detail-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 16px 20px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+    .detail-title-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .detail-title-row h1 { font-size: 17px; font-weight: 700; line-height: 1.3; }
+    .detail-meta {
+      display: flex;
+      gap: 14px;
+      margin-top: 7px;
+      font-size: 11.5px;
+      color: var(--muted);
+      flex-wrap: wrap;
+    }
+    .detail-meta b { color: var(--fg-2); font-weight: 500; }
+    .detail-actions { display: flex; align-items: center; gap: 12px; flex: none; }
+    .switch-label { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+    .switch {
+      position: relative;
+      width: 36px; height: 20px;
+      display: inline-block;
+      flex: none;
+    }
+    .switch input { position: absolute; inset: 0; opacity: 0; cursor: pointer; z-index: 2; }
+    .switch .track {
+      position: absolute; inset: 0;
+      background: var(--border-strong);
+      border-radius: 999px;
+      transition: 0.18s;
+      pointer-events: none;
+    }
+    .switch .track::after {
+      content: '';
+      position: absolute;
+      left: 2px; top: 2px;
+      width: 16px; height: 16px;
+      border-radius: 50%;
+      background: #fff;
+      transition: 0.18s;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+    }
+    .switch input:checked + .track { background: var(--primary); }
+    .switch input:checked + .track::after { transform: translateX(16px); }
+
+    .subtabs {
+      display: flex;
+      gap: 2px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 20px;
+    }
+    .subtab {
+      position: relative;
+      padding: 10px 15px 11px;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      font-size: 12.5px;
+      transition: 0.16s;
+      white-space: nowrap;
+    }
+    .subtab:hover { color: var(--fg); }
+    .subtab.active { color: var(--primary); font-weight: 600; }
+    .subtab.active::after {
+      content: '';
+      position: absolute;
+      left: 12px; right: 12px; bottom: -1px;
+      height: 2px;
+      background: var(--primary);
+      border-radius: 2px;
+    }
+    .subtab-badge { font-size: 10px; color: var(--muted-2); margin-left: 4px; }
+
+    .panel { flex: 1; overflow: auto; padding: 18px 20px 26px; }
+    .panel-inner { max-width: 980px; margin: 0 auto; }
+
+    /* chip */
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      height: 21px;
+      padding: 0 8px;
+      border-radius: 999px;
+      font-size: 10.5px;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      white-space: nowrap;
+    }
+    .chip-neutral { background: var(--surface-3); color: var(--muted); }
+    .sev-error { background: var(--error-soft); color: var(--error-strong); }
+    .sev-warn { background: var(--warn-soft); color: var(--warn-strong); }
+    .sev-info { background: var(--info-soft); color: var(--info); }
+    .sev-success { background: var(--success-soft); color: var(--success); }
+
+    /* buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      height: 32px;
+      padding: 0 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--fg-2);
+      font-size: 12.5px;
+      transition: 0.16s;
+      white-space: nowrap;
+    }
+    .btn:hover { border-color: var(--border-strong); color: var(--fg); background: var(--surface-2); }
+    .btn-primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); color: #fff; }
+    .btn-ghost { background: transparent; border-color: transparent; }
+    .btn-ghost:hover { background: var(--surface-2); border-color: var(--border); }
+    .btn-sm { height: 28px; padding: 0 10px; font-size: 11.5px; border-radius: 7px; }
+    .btn svg { width: 14px; height: 14px; }
+    .icon-btn {
+      width: 22px; height: 22px;
+      border: 0;
+      border-radius: 5px;
+      background: transparent;
+      color: var(--muted);
+      display: grid; place-items: center;
+      font-size: 15px;
+      line-height: 1;
+      transition: 0.14s;
+    }
+    .icon-btn:hover { background: var(--surface-3); color: var(--fg); }
+
+    /* visual editor */
+    .visual-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+    .visual-title { font-size: 14.5px; font-weight: 600; }
+    .visual-sub { font-size: 11.5px; color: var(--muted); margin-top: 4px; }
+    .cond-group {
+      position: relative;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px 16px 10px;
+      box-shadow: var(--shadow-sm);
+    }
+    .group-badge {
+      position: absolute;
+      top: -9px; left: 18px;
+      background: var(--primary);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      padding: 2px 9px;
+      border-radius: 999px;
+      box-shadow: 0 2px 8px var(--primary-soft);
+    }
+    .group-label { font-size: 11px; color: var(--muted); margin: 2px 0 12px; }
+    .cond-branch {
+      position: relative;
+      margin: 10px 0 6px 10px;
+      padding-left: 22px;
+      border-left: 2px solid var(--border-strong);
+    }
+    .cond-branch:last-child { border-left-color: transparent; }
+    .node-and {
+      position: absolute;
+      left: -17px; top: 20px;
+      width: 30px; height: 20px;
+      display: grid; place-items: center;
+      background: var(--surface-3);
+      color: var(--muted);
+      border-radius: 6px;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+    }
+    .cond-node {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+    }
+    .cond-node + .cond-node { margin-top: 8px; }
+    .cond-index {
+      flex: none;
+      width: 22px; height: 22px;
+      border-radius: 6px;
+      background: var(--surface-3);
+      color: var(--muted);
+      display: grid; place-items: center;
+      font-size: 10px;
+      font-family: var(--font-mono);
+      margin-top: 1px;
+    }
+    .cond-body { flex: 1; min-width: 0; }
+    .cond-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .node-tag {
+      height: 20px;
+      padding: 0 7px;
+      border-radius: 5px;
+      font-size: 10px;
+      font-weight: 600;
+      display: inline-grid; place-items: center;
+      white-space: nowrap;
+    }
+    .field-tag { background: var(--info-soft); color: var(--info); }
+    .ext-tag { background: var(--warn-soft); color: var(--warn-strong); }
+    .node-field { font-size: 12.5px; font-weight: 500; }
+    .cond-op {
+      height: 28px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      background: var(--surface);
+      padding: 0 8px;
+      font-size: 11.5px;
+      font-family: var(--font-mono);
+    }
+    .cond-value {
+      height: 28px;
+      min-width: 120px;
+      flex: 1;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      background: var(--surface);
+      padding: 0 10px;
+      font-size: 12px;
+      font-family: var(--font-mono);
+    }
+    .cond-path {
+      margin-top: 7px;
+      font-size: 11px;
+      color: var(--muted);
+      word-break: break-all;
+      line-height: 1.6;
+    }
+    .args { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
+    .arg {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      height: 24px;
+      padding: 0 8px;
+      border-radius: 6px;
+      background: var(--surface-3);
+      font-size: 11px;
+      font-family: var(--font-mono);
+    }
+    .arg b { font-weight: 500; color: var(--info); }
+    .visual-ghost {
+      margin: 8px 0 2px 32px;
+      color: var(--muted-2);
+      font-size: 11px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+    }
+    .visual-ghost:hover { color: var(--primary); }
+    .visual-footer {
+      margin-top: 12px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      background: var(--surface-2);
+      border: 1px dashed var(--border);
+      color: var(--muted);
+      font-size: 11.5px;
+    }
+
+    /* QL editor */
+    .ql-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .ql-toolbar .status-msg { font-size: 11.5px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+    .ql-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    .ql-pane {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .ql-pane-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface-2);
+    }
+    .ql-pane-head .pane-label {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .pane-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .pane-dot.dsl { background: var(--info); }
+    .pane-dot.ql { background: var(--warn); }
+    textarea.code-area {
+      border: 0 !important;
+      border-radius: 0 !important;
+      background: transparent !important;
+      min-height: 480px !important;
+      resize: none;
+      padding: 14px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.75;
+      white-space: pre;
+      color: var(--fg);
+    }
+    pre.code-area {
+      border: 0 !important;
+      border-radius: 0 !important;
+      background: transparent !important;
+      margin: 0;
+      padding: 14px;
+      overflow: auto;
+      min-height: 480px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.75;
+      color: var(--fg-2);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    textarea.code-area:focus { outline: none; }
+    .ql-pane-foot {
+      padding: 8px 12px;
+      border-top: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* ============ 实时测试台 ============ */
+    .testbench {
+      height: calc(100vh - var(--topbar-h) - var(--nav-h));
+      overflow: auto;
+      background: var(--bg);
+      padding: 18px 20px 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .tb-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 14px;
+    }
+    .tb-toolbar .tb-title { font-size: 14px; font-weight: 600; margin-right: 4px; }
+    .tb-toolbar .select, .tb-toolbar .btn { height: 30px; }
+    .tb-toolbar .select { min-width: 200px; }
+    .tb-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-left: auto;
+      font-size: 11.5px;
+      color: var(--muted);
+    }
+    .tb-status .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); }
+    .tb-status.working .dot { background: var(--warn); animation: pulse 0.9s infinite; }
+    @keyframes pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(0.7); } }
+    .tb-grid {
+      display: grid;
+      grid-template-columns: 270px 1fr 392px;
+      gap: 14px;
+      flex: 1;
+      min-height: 0;
+    }
+    .tb-col { min-height: 0; display: flex; flex-direction: column; }
+    .tb-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .tb-card-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 13px;
+      border-bottom: 1px solid var(--border);
+      font-size: 12.5px;
+      font-weight: 600;
+      background: var(--surface-2);
+    }
+    .tb-card-head svg { width: 15px; height: 15px; color: var(--primary); }
+    .tb-card-body { padding: 12px 13px; display: flex; flex-direction: column; gap: 11px; overflow-y: auto; min-height: 0; }
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field-label { font-size: 11px; color: var(--muted); }
+    .input, .select, .textarea {
+      width: 100%;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 12.5px;
+      color: var(--fg);
+      transition: 0.16s;
+    }
+    .input:focus, .select:focus, .textarea:focus {
+      outline: none;
+      border-color: var(--primary-border);
+      box-shadow: 0 0 0 3px var(--primary-soft);
+    }
+    .select { padding-right: 8px; }
+    .textarea { resize: none; line-height: 1.7; }
+    .textarea-editor { min-height: 150px; flex: 1; }
+    .patient-banner {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 9px;
+      border-radius: 10px;
+      background: var(--primary-soft);
+      border: 1px solid var(--primary-border);
+    }
+    .patient-banner .avatar {
+      width: 30px; height: 30px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: #fff;
+      display: grid; place-items: center;
+      font-size: 12px;
+      font-weight: 600;
+      flex: none;
+    }
+    .patient-banner .p-info { font-size: 12px; line-height: 1.4; }
+    .patient-banner .p-name { font-weight: 600; }
+    .patient-banner .p-sub { color: var(--muted); font-size: 10.5px; }
+    .tb-hint {
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.7;
+      padding: 8px 11px;
+      border-radius: 8px;
+      background: var(--surface-2);
+      border: 1px dashed var(--border);
+    }
+    .tb-hint b { color: var(--fg-2); }
+    .result-list { display: flex; flex-direction: column; gap: 10px; }
+    .result-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--warn);
+      border-radius: 10px;
+      padding: 10px 11px;
+      box-shadow: var(--shadow-sm);
+    }
+    .result-card.error { border-left-color: var(--error); }
+    .result-card.warn { border-left-color: var(--warn); }
+    .result-head { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+    .result-name { font-size: 12.5px; font-weight: 600; }
+    .result-message { font-size: 11.5px; color: var(--fg-2); margin-top: 6px; line-height: 1.6; }
+    .result-suggestion {
+      margin-top: 7px;
+      padding: 7px 9px;
+      border-radius: 7px;
+      background: var(--surface-2);
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+    .result-suggestion b { color: var(--fg-2); }
+    .result-actions { display: flex; gap: 6px; margin-top: 8px; }
+    .empty-state {
+      height: 100%;
+      min-height: 260px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: var(--muted);
+      text-align: center;
+      padding: 20px;
+    }
+    .empty-state .check {
+      width: 42px; height: 42px;
+      border-radius: 50%;
+      background: var(--success-soft);
+      color: var(--success);
+      display: grid; place-items: center;
+    }
+    .empty-state .check svg { width: 20px; height: 20px; }
+    .empty-title { font-size: 13px; font-weight: 600; color: var(--fg-2); }
+    .empty-sub { font-size: 11.5px; max-width: 240px; }
+
+    /* evidence spans in editor preview */
+    .ev-section { margin-bottom: 12px; }
+    .ev-section-title { font-size: 11px; color: var(--muted); margin-bottom: 5px; font-weight: 600; }
+    .ev-text {
+      padding: 10px 12px;
+      border-radius: 9px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      font-size: 12.5px;
+      line-height: 1.9;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    mark.hl {
+      background: color-mix(in oklab, var(--warn) 30%, transparent);
+      color: var(--fg);
+      padding: 0 2px;
+      border-radius: 3px;
+      border-bottom: 1.5px solid var(--warn);
+    }
+    mark.hl.error {
+      background: color-mix(in oklab, var(--error) 26%, transparent);
+      border-bottom-color: var(--error);
+    }
+    .ev-meta { font-size: 10.5px; color: var(--muted); margin-top: 5px; font-family: var(--font-mono); }
+
+    /* ============ 命中解释抽屉 ============ */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s;
+      z-index: 90;
+    }
+    .overlay.show { opacity: 1; pointer-events: auto; }
+    .drawer {
+      position: fixed;
+      top: 0; right: 0; bottom: 0;
+      width: 480px;
+      max-width: 92vw;
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+      box-shadow: -16px 0 40px rgba(0,0,0,0.25);
+      transform: translateX(100%);
+      transition: transform 0.28s cubic-bezier(0.22,0.8,0.3,1);
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+    }
+    .drawer.open { transform: translateX(0); }
+    .drawer-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+    .drawer-title { font-size: 15px; font-weight: 700; line-height: 1.4; }
+    .drawer-sub { font-size: 11.5px; color: var(--muted); margin-top: 5px; }
+    .drawer-body { flex: 1; overflow-y: auto; padding: 16px 18px; display: flex; flex-direction: column; gap: 14px; }
+    .drawer-foot {
+      padding: 12px 18px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 8px;
+      background: var(--surface-2);
+    }
+    .drawer-section { display: flex; flex-direction: column; gap: 7px; }
+    .drawer-section-title { font-size: 11.5px; color: var(--muted); font-weight: 600; letter-spacing: 0.02em; }
+    .path-card {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface-2);
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .path-step { display: flex; align-items: flex-start; gap: 8px; font-size: 11.5px; color: var(--fg-2); }
+    .path-ok {
+      flex: none;
+      width: 17px; height: 17px;
+      border-radius: 50%;
+      background: var(--success-soft);
+      color: var(--success);
+      display: grid; place-items: center;
+      font-size: 11px;
+      font-weight: 700;
+      margin-top: 2px;
+    }
+    .path-text { word-break: break-all; line-height: 1.6; }
+    .rule-meta-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .meta-kv {
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+    }
+    .meta-kv .k { font-size: 10px; color: var(--muted); }
+    .meta-kv .v { font-size: 12px; font-weight: 600; margin-top: 2px; }
+
+    /* toast */
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 28px;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--surface-3);
+      color: var(--fg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 9px 16px;
+      font-size: 12px;
+      box-shadow: var(--shadow);
+      opacity: 0;
+      pointer-events: none;
+      transition: 0.22s;
+      z-index: 140;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* scrollbars */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 99px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--muted-2); }
+  </style>
+</head>
+<body>
+  <!-- 顶栏 -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-logo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round">
+          <path d="M12 4v16M4 12h16" />
+        </svg>
+      </div>
+      <div class="brand-text">
+        <div class="brand-title">Health View OS</div>
+        <div class="brand-sub">实时质控规则引擎</div>
+      </div>
+    </div>
+    <div class="topbar-search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>
+      </svg>
+      <input type="text" placeholder="搜索规则、科室、规则 ID…" />
+    </div>
+    <div class="topbar-actions">
+      <div class="env-chip"><span class="dot"></span>影像中心 · 演示环境</div>
+      <div class="theme-toggle" role="group" aria-label="主题切换">
+        <button type="button" data-theme-btn="dark" class="active">暗夜</button>
+        <button type="button" data-theme-btn="light">白昼</button>
+      </div>
+      <div class="doctor">
+        <div class="doctor-avatar">张</div>
+        <div>
+          <div class="doctor-name">张主任</div>
+          <div class="doctor-role">质控规则管理员</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- 一级导航 -->
+  <nav class="mainnav">
+    <button class="mainnav-item active" data-view="workspace">规则中心</button>
+    <button class="mainnav-item" data-view="testbench">实时测试台</button>
+    <div class="mainnav-right">
+      <span class="sync-indicator"><span class="dot"></span>规则热加载已同步</span>
+      <span>影子模式 1 条</span>
+    </div>
+  </nav>
+
+  <!-- ============ 规则中心 ============ -->
+  <main class="workspace" id="view-workspace">
+    <aside class="rule-sidebar">
+      <div class="sidebar-head">
+        <span class="sidebar-title">质控规则库</span>
+        <span class="sidebar-count" id="rule-count">3</span>
+      </div>
+      <div class="sidebar-filter">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>
+        </svg>
+        <input type="text" id="rule-search" placeholder="筛选规则" />
+      </div>
+      <div class="rule-stat">
+        <span class="st st-enabled"><i></i>3 已启用</span>
+        <span class="st st-shadow"><i></i>1 影子模式</span>
+      </div>
+      <div class="rule-list" id="rule-list"></div>
+      <button class="new-rule-btn" id="new-rule-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        新建规则
+      </button>
+      <div class="sidebar-footer">
+        规则引擎 v4.2 · QL JSONLogic<br />
+        热加载 · 影子模式 · 版本可回滚
+      </div>
+    </aside>
+
+    <section class="workspace-main">
+      <div class="detail-head" id="detail-head"></div>
+      <div class="subtabs" id="subtabs">
+        <button class="subtab active" data-subtab="visual">可视化编排</button>
+        <button class="subtab" data-subtab="ql">DSL / QL 编辑器</button>
+      </div>
+      <div class="panel" id="panel-visual"></div>
+      <div class="panel" id="panel-ql" hidden></div>
+    </section>
+  </main>
+
+  <!-- ============ 实时测试台 ============ -->
+  <main class="testbench" id="view-testbench" hidden>
+    <div class="tb-toolbar">
+      <span class="tb-title">实时测试台</span>
+      <select class="select" id="scenario-select"></select>
+      <button class="btn btn-primary" id="run-now-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><polygon points="6 4 20 12 6 20 6 4"/></svg>
+        运行校验
+      </button>
+      <span class="tb-status" id="tb-status">
+        <span class="dot"></span>
+        <span id="tb-status-text">就绪 · 400ms 输入防抖</span>
+      </span>
+    </div>
+
+    <div class="tb-grid">
+      <!-- 患者上下文 -->
+      <div class="tb-col">
+        <div class="tb-card" style="flex:1;">
+          <div class="tb-card-head">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.5-6 8-6s8 2 8 6"/></svg>
+            患者上下文
+          </div>
+          <div class="tb-card-body">
+            <div class="patient-banner">
+              <div class="avatar">王</div>
+              <div class="p-info">
+                <div class="p-name">王建国 · 67 岁</div>
+                <div class="p-sub">P-2025-001188 · 胸腹部 CT</div>
+              </div>
+            </div>
+            <div class="field">
+              <label class="field-label">患者 ID</label>
+              <input class="input mono" id="pt-id" value="P-2025-001188" />
+            </div>
+            <div class="field">
+              <label class="field-label">性别</label>
+              <select class="select" id="pt-sex">
+                <option value="M">男（M）</option>
+                <option value="F">女（F）</option>
+                <option value="U">未知（U）</option>
+              </select>
+            </div>
+            <div class="field">
+              <label class="field-label">年龄</label>
+              <input class="input" id="pt-age" type="number" min="0" max="130" value="67" />
+            </div>
+            <div class="field">
+              <label class="field-label">检查类型</label>
+              <select class="select" id="pt-modality">
+                <option>CT</option><option>MR</option><option>DR</option><option>US</option>
+              </select>
+            </div>
+            <div class="field">
+              <label class="field-label">报告类型</label>
+              <select class="select" id="pt-type">
+                <option>RADIOLOGY · 影像报告</option>
+                <option>PATHOLOGY · 病理报告</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 报告输入 -->
+      <div class="tb-col">
+        <div class="tb-card" style="flex:1;">
+          <div class="tb-card-head">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg>
+            报告文本编辑（边写边标）
+          </div>
+          <div class="tb-card-body" style="flex:1;">
+            <div class="field" style="flex:1; display:flex; flex-direction:column;">
+              <label class="field-label">影像所见 · findings</label>
+              <textarea class="textarea textarea-editor" id="ta-findings" spellcheck="false"></textarea>
+            </div>
+            <div class="field" style="flex:1; display:flex; flex-direction:column;">
+              <label class="field-label">诊断意见 · impression</label>
+              <textarea class="textarea textarea-editor" id="ta-impression" spellcheck="false"></textarea>
+            </div>
+            <div class="tb-hint">
+              <b>触发策略</b>：输入后 400ms debounce · 句末标点立即校验 · 粘贴立即校验 · IME 中间态挂起 · 异步结果按 seq 丢弃过期命中。
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 质控结果 -->
+      <div class="tb-col">
+        <div class="tb-card" style="flex:1;">
+          <div class="tb-card-head">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/><path d="m8.5 12 2.2 2.2L15.5 10"/></svg>
+            质控结果 <span id="result-count-badge" class="chip chip-neutral">0 条</span>
+          </div>
+          <div class="tb-card-body" id="result-list-container"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- 命中解释抽屉 -->
+  <div class="overlay" id="drawer-overlay"></div>
+  <aside class="drawer" id="drawer">
+    <div class="drawer-head">
+      <div>
+        <div class="drawer-title" id="dr-title"></div>
+        <div class="drawer-sub" id="dr-sub"></div>
+      </div>
+      <button class="icon-btn" id="drawer-close" style="width:30px;height:30px;font-size:20px;">×</button>
+    </div>
+    <div class="drawer-body" id="drawer-body"></div>
+    <div class="drawer-foot">
+      <button class="btn btn-sm" id="dr-ql-btn">在 QL 中查看</button>
+      <button class="btn btn-sm" id="dr-ignore-btn">忽略此提示</button>
+      <button class="btn btn-sm btn-primary" id="dr-close-btn" style="margin-left:auto;">关闭</button>
+    </div>
+  </aside>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      /* ============================ 规则数据 ============================ */
+      const RULES = [
+        {
+          id: 'QC_NUM_0001',
+          name: '血压数值颠倒',
+          short: '收缩压低于舒张压',
+          category: '数值逻辑',
+          severity: 'WARN',
+          version: 'v3',
+          enabled: true,
+          updatedAt: '2025-06-12 14:32',
+          updatedBy: '张主任',
+          modality: '全部检查',
+          section: '全部段落',
+          forEach: 'ctx.derived.bloodPressures',
+          visual: {
+            group: 'AND',
+            children: [
+              { type: 'field', field: 'derived.bloodPressures.systolic', op: '>', value: '0', path: 'item.systolic > 0' },
+              { type: 'field', field: 'derived.bloodPressures.diastolic', op: '>', value: '0', path: 'item.diastolic > 0' },
+              { type: 'field', field: 'derived.bloodPressures.systolic', op: '<', value: 'bloodPressures.diastolic', path: 'item.systolic < item.diastolic' }
+            ]
+          },
+          dsl: 'WHEN $bp.systolic > 0\n  AND $bp.diastolic > 0\n  AND $bp.systolic < $bp.diastolic\nTHEN WARN "收缩压低于舒张压，疑似录入顺序颠倒"\n  SUGGEST "请核对血压数值，收缩压应高于舒张压"',
+          ql: {
+            id: 'QC_NUM_0001', name: '血压数值颠倒', category: 'NUMERIC_LOGIC', severity: 'WARN', version: 3, enabled: true,
+            applicability: { modality: ['*'], section: ['*'] },
+            forEach: 'ctx.derived.bloodPressures', once: false,
+            condition: {
+              and: [
+                { '>': [{ var: 'item.systolic' }, 0] },
+                { '>': [{ var: 'item.diastolic' }, 0] },
+                { '<': [{ var: 'item.systolic' }, { var: 'item.diastolic' }] }
+              ]
+            },
+            output: {
+              message: '收缩压 {{item.systolic}} mmHg 低于舒张压 {{item.diastolic}} mmHg，疑似录入顺序颠倒',
+              suggestion: '请核对血压数值：收缩压应高于舒张压',
+              highlight: 'item.span'
+            }
+          }
+        },
+        {
+          id: 'QC_SEM_0002',
+          name: '男性报告出现女性解剖词汇',
+          short: '性别 / 解剖矛盾',
+          category: '器官 · 性别矛盾',
+          severity: 'ERROR',
+          version: 'v2',
+          enabled: true,
+          updatedAt: '2025-06-11 09:18',
+          updatedBy: '李医生',
+          modality: '全部检查',
+          section: 'findings / impression',
+          forEach: null,
+          visual: {
+            group: 'AND',
+            children: [
+              { type: 'field', field: 'patient.sex', op: '等于', value: 'M', path: 'ctx.patient.sex === "M"' },
+              {
+                type: 'ext', field: 'med:matchTerms', path: '命中女性专属解剖词汇（子宫 / 卵巢 / 宫颈 / 阴道 / 输卵管）',
+                args: [
+                  { k: 'source', v: 'ctx.report.sections' },
+                  { k: 'vocab', v: 'SEX_FEMALE_ONLY_ANATOMY' },
+                  { k: 'minConfidence', v: '0.8' },
+                  { k: 'respectNegation', v: 'false' }
+                ]
+              }
+            ]
+          },
+          dsl: 'WHEN ctx.patient.sex = "M"\n  AND med:matchTerms(\n    source: ctx.report.sections,\n    vocab: SEX_FEMALE_ONLY_ANATOMY,\n    minConfidence: 0.8,\n    respectNegation: false\n  )\nTHEN ERROR "男性患者报告命中女性专属解剖词汇"\n  SUGGEST "请核对患者性别或修订解剖描述"',
+          ql: {
+            id: 'QC_SEM_0002', name: '男性报告出现女性解剖词汇', category: 'ANATOMY_SEX_CONFLICT', severity: 'ERROR', version: 2, enabled: true,
+            applicability: { modality: ['*'], section: ['findings', 'impression'] },
+            forEach: null, once: true,
+            condition: {
+              and: [
+                { '===': [{ var: 'ctx.patient.sex' }, 'M'] },
+                {
+                  'med:matchTerms': {
+                    source: { var: 'ctx.report.sections' },
+                    vocab: 'SEX_FEMALE_ONLY_ANATOMY',
+                    language: 'zh-CN',
+                    minConfidence: 0.8,
+                    respectNegation: false,
+                    return: 'spans'
+                  }
+                }
+              ]
+            },
+            output: {
+              message: '男性患者报告命中女性专属解剖词汇：{{0.text}}',
+              suggestion: '请核对患者性别或修订解剖描述',
+              highlight: '@firstHit'
+            }
+          }
+        },
+        {
+          id: 'QC_CONSISTENCY_0003',
+          name: '描述阳性发现但诊断结论正常',
+          short: '结节 / 结论矛盾',
+          category: '前后一致性',
+          severity: 'WARN',
+          version: 'v4',
+          enabled: true,
+          updatedAt: '2025-06-13 10:02',
+          updatedBy: '系统管理员',
+          modality: 'CT / MR / DR / US',
+          section: 'impression',
+          forEach: null,
+          visual: {
+            group: 'AND',
+            children: [
+              {
+                type: 'ext', field: 'med:hasPositiveFinding', path: 'findings 存在阳性发现：结节 / 占位（minCertainty ≥ probable）',
+                args: [
+                  { k: 'section', v: 'findings' },
+                  { k: 'findingTypes', v: 'nodule, nodule_ggo, nodule_solid' },
+                  { k: 'minCertainty', v: 'probable' }
+                ]
+              },
+              {
+                type: 'ext', field: 'med:matchesText', path: 'impression 命中正常结论模式集 IMPRESSION_NORMAL',
+                args: [
+                  { k: 'section', v: 'impression' },
+                  { k: 'patternSet', v: 'IMPRESSION_NORMAL' },
+                  { k: 'mode', v: 'any' }
+                ]
+              }
+            ]
+          },
+          dsl: 'WHEN med:hasPositiveFinding(\n    section: findings,\n    findingTypes: [nodule, nodule_ggo, nodule_solid],\n    minCertainty: probable\n  )\n  AND med:matchesText(\n    section: impression,\n    patternSet: IMPRESSION_NORMAL\n  )\nTHEN WARN "影像描述提示存在结节，但诊断结论为正常"\n  SUGGEST "请在结论中补充该结节的判读意见或随访建议"',
+          ql: {
+            id: 'QC_CONSISTENCY_0003', name: '描述阳性发现但诊断结论正常', category: 'SECTION_INCONSISTENCY', severity: 'WARN', version: 4, enabled: true,
+            applicability: { modality: ['CT', 'MR', 'DR', 'US'], section: ['impression'] },
+            forEach: null, once: true,
+            condition: {
+              and: [
+                {
+                  'med:hasPositiveFinding': {
+                    section: 'findings',
+                    findingTypes: ['nodule', 'nodule_ggo', 'nodule_solid'],
+                    minCertainty: 'probable'
+                  }
+                },
+                {
+                  'med:matchesText': {
+                    section: 'impression',
+                    patternSet: 'IMPRESSION_NORMAL',
+                    mode: 'any'
+                  }
+                }
+              ]
+            },
+            output: {
+              message: '影像描述提示存在结节，但诊断结论为正常，前后逻辑不一致',
+              suggestion: '请在结论中补充该结节的判读意见或随访建议',
+              highlight: '@firstHit'
+            }
+          }
+        }
+      ];
+
+      const SCENARIOS = {
+        combined: {
+          label: '组合场景 · 演示全部规则',
+          sex: 'M',
+          age: 67,
+          modality: 'CT',
+          findings: '右肺上叶见磨玻璃结节，大小约 12×9 mm，边界尚清。患者血压 106/118 mmHg。盆腔示子宫及双侧卵巢未见占位。',
+          impression: '双肺未见明显异常。'
+        },
+        bp: {
+          label: '场景 A · 血压数值颠倒',
+          sex: 'M',
+          age: 67,
+          modality: 'CT',
+          findings: '患者血压 106/118 mmHg，心率 72 次/分。',
+          impression: '上述血压数值请在复测后校正。'
+        },
+        sex: {
+          label: '场景 B · 男性出现女性解剖词',
+          sex: 'M',
+          age: 67,
+          modality: 'CT',
+          findings: '盆腔示子宫及双侧卵巢形态、大小未见明确异常。',
+          impression: '盆腔未见明显异常。'
+        },
+        nodule: {
+          label: '场景 C · 描述结节但结论正常',
+          sex: 'M',
+          age: 67,
+          modality: 'CT',
+          findings: '右肺上叶见一枚磨玻璃结节，大小约 12×9 mm，边界尚清。',
+          impression: '双肺未见明显异常。'
+        }
+      };
+
+      /* ============================ 状态 ============================ */
+      let selectedRule = 0;
+      let selectedSubtab = 'visual';
+      let lastResults = [];
+      let lastContext = { findings: '', impression: '' };
+      let dismissedKeys = new Set();
+      let resultSeq = 0;
+      let validationTimer = null;
+      let currentDrawerResult = null;
+
+      /* ============================ 工具 ============================ */
+      const $ = (sel) => document.querySelector(sel);
+      const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+      function getRule(id) { return RULES.find(r => r.id === id); }
+
+      function showToast(msg) {
+        const t = $('#toast');
+        t.textContent = msg;
+        t.classList.add('show');
+        clearTimeout(t._timer);
+        t._timer = setTimeout(() => t.classList.remove('show'), 2200);
+      }
+
+      function groupBy(arr, key) {
+        return arr.reduce((acc, item) => {
+          (acc[item[key]] = acc[item[key]] || []).push(item);
+          return acc;
+        }, {});
+      }
+
+      /* ============================ 主题 ============================ */
+      document.querySelectorAll('[data-theme-btn]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.documentElement.setAttribute('data-theme', btn.dataset.themeBtn);
+          document.querySelectorAll('[data-theme-btn]').forEach(b => b.classList.toggle('active', b === btn));
+        });
+      });
+
+      /* ============================ 视图切换 ============================ */
+      document.querySelectorAll('.mainnav-item').forEach(btn => {
+        btn.addEventListener('click', () => switchView(btn.dataset.view));
+      });
+      function switchView(view) {
+        $('#view-workspace').hidden = view !== 'workspace';
+        $('#view-testbench').hidden = view !== 'testbench';
+        document.querySelectorAll('.mainnav-item').forEach(b => b.classList.toggle('active', b.dataset.view === view));
+        if (view === 'testbench') evaluateAndRender();
+      }
+
+      /* ============================ 规则库 ============================ */
+      function renderRuleList() {
+        const list = $('#rule-list');
+        const query = ($('#rule-search').value || '').trim().toLowerCase();
+        $('#rule-count').textContent = RULES.length;
+        list.innerHTML = RULES.map((r, i) => {
+          if (query && !(r.name + r.id + r.category).toLowerCase().includes(query)) return '';
+          const sev = r.severity.toLowerCase();
+          return `
+            <div class="rule-item ${i === selectedRule ? 'selected' : ''}" data-rule-idx="${i}">
+              <div class="rule-item-top">
+                <div class="rule-item-name">${r.name}</div>
+                <label class="switch" title="${r.enabled ? '停用规则' : '启用规则'}">
+                  <input type="checkbox" ${r.enabled ? 'checked' : ''} data-rule-toggle="${i}">
+                  <span class="track"></span>
+                </label>
+              </div>
+              <div class="rule-item-sub">${r.category}</div>
+              <div class="rule-item-meta">
+                <span class="chip sev-${sev}">${r.severity}</span>
+                <span class="chip chip-neutral">${r.version}</span>
+                <span class="chip chip-neutral">${r.modality}</span>
+              </div>
+            </div>`;
+        }).join('');
+        list.querySelectorAll('[data-rule-idx]').forEach(el => {
+          el.addEventListener('click', (e) => {
+            if (e.target.closest('.switch')) return;
+            selectRule(Number(el.dataset.ruleIdx));
+          });
+        });
+        list.querySelectorAll('[data-rule-toggle]').forEach(input => {
+          input.addEventListener('click', (e) => e.stopPropagation());
+          input.addEventListener('change', (e) => {
+            const idx = Number(e.target.dataset.ruleToggle);
+            RULES[idx].enabled = e.target.checked;
+            const r = RULES[idx];
+            showToast(`${r.name} 已${r.enabled ? '启用' : '停用'}`);
+            renderRuleList();
+            if (selectedRule === idx) renderDetailHead();
+          });
+        });
+      }
+
+      function selectRule(idx) {
+        selectedRule = idx;
+        renderRuleList();
+        renderDetailHead();
+        renderVisualEditor(RULES[idx]);
+        renderQLEditor(RULES[idx]);
+      }
+
+      function renderDetailHead() {
+        const r = RULES[selectedRule];
+        const sev = r.severity.toLowerCase();
+        $('#detail-head').innerHTML = `
+          <div>
+            <div class="detail-title-row">
+              <h1>${r.name}</h1>
+              <span class="chip sev-${sev}">${r.severity}</span>
+              <span class="chip chip-neutral">${r.version}</span>
+              <span class="chip chip-neutral">${r.category}</span>
+            </div>
+            <div class="detail-meta">
+              <span>规则 ID <b>${r.id}</b></span>
+              <span>适用 <b>${r.modality}</b></span>
+              <span>作用域 <b>${r.section}</b></span>
+              <span>更新 <b>${r.updatedAt} · ${r.updatedBy}</b></span>
+            </div>
+          </div>
+          <div class="detail-actions">
+            <label class="switch-label">
+              ${r.enabled ? '已启用' : '已停用'}
+              <label class="switch">
+                <input type="checkbox" id="detail-enabled" ${r.enabled ? 'checked' : ''}>
+                <span class="track"></span>
+              </label>
+            </label>
+            <button class="btn btn-primary" id="save-rule-btn">保存规则</button>
+          </div>`;
+        $('#detail-enabled').addEventListener('change', (e) => {
+          r.enabled = e.target.checked;
+          renderRuleList();
+          renderDetailHead();
+        });
+        $('#save-rule-btn').addEventListener('click', () => showToast(`规则 ${r.id} 已保存为草稿 v${r.version}`));
+        $('#subtabs').querySelectorAll('.subtab').forEach(btn => {
+          btn.classList.toggle('active', btn.dataset.subtab === selectedSubtab);
+        });
+        $('#panel-visual').hidden = selectedSubtab !== 'visual';
+        $('#panel-ql').hidden = selectedSubtab !== 'ql';
+      }
+
+      /* ============================ 可视化编排 ============================ */
+      function renderVisualEditor(r) {
+        const host = $('#panel-visual');
+        host.innerHTML = `
+          <div class="panel-inner">
+            <div class="visual-head">
+              <div>
+                <div class="visual-title">条件编排</div>
+                <div class="visual-sub">满足以下全部条件时，触发质控提示并定位证据 span</div>
+              </div>
+              <button class="btn btn-sm" id="add-cond-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                添加条件组
+              </button>
+            </div>
+            <div class="cond-group">
+              <span class="group-badge">AND</span>
+              <div class="group-label">规则 ${r.id} · 条件求值环境 { ctx · item }</div>
+              ${r.visual.children.map((c, i) => renderNode(c, i)).join('')}
+              <div class="visual-ghost" id="ghost-cond">＋ 添加条件</div>
+            </div>
+            <div class="visual-footer">
+              输出策略：<b>${r.severity}</b> · 命中位置高亮 · 建议文案
+              ${r.forEach ? ` · 集合适配 <span class="mono">${r.forEach}</span>` : ' · once=true'}
+            </div>
+          </div>`;
+        $('#add-cond-btn').addEventListener('click', () => showToast('条件组编排已打开 · 原型预留入口'));
+        $('#ghost-cond').addEventListener('click', () => showToast('已添加空白条件节点原型'));
+        host.querySelectorAll('.cond-op').forEach(sel => {
+          sel.addEventListener('change', () => {
+            const idx = Number(sel.dataset.op);
+            const node = r.visual.children[idx];
+            const row = sel.closest('.cond-row');
+            const pathEl = sel.closest('.cond-node').querySelector('.cond-path');
+            if (node.type === 'field' && pathEl) {
+              const val = row.querySelector('.cond-value').value;
+              node.op = sel.value;
+              pathEl.textContent = `${node.field} ${sel.value} ${val}`;
+            }
+          });
+        });
+        host.querySelectorAll('.cond-del').forEach(btn => {
+          btn.addEventListener('click', () => showToast('删除条件需保留至少一个条件 · 原型示意'));
+        });
+      }
+
+      function renderNode(c, i) {
+        const idx = String(i + 1).padStart(2, '0');
+        if (c.type === 'field') {
+          return `
+            <div class="cond-branch">
+              <span class="node-and">AND</span>
+              <div class="cond-node">
+                <div class="cond-index">${idx}</div>
+                <div class="cond-body">
+                  <div class="cond-row">
+                    <span class="node-tag field-tag">字段</span>
+                    <span class="node-field mono">${c.field}</span>
+                    <select class="cond-op" data-op="${i}">
+                      <option ${c.op === '>' ? 'selected' : ''}>></option>
+                      <option ${c.op === '<' ? 'selected' : ''}><</option>
+                      <option ${c.op === '等于' ? 'selected' : ''}>等于</option>
+                      <option ${c.op === '!=' ? 'selected' : ''}>!=</option>
+                      <option ${c.op === '>=' ? 'selected' : ''}>>=</option>
+                      <option ${c.op === '<=' ? 'selected' : ''}><=</option>
+                      <option>∈</option>
+                    </select>
+                    <input class="cond-value" value="${esc(c.value)}" />
+                  </div>
+                  <div class="cond-path mono">${esc(c.path)}</div>
+                </div>
+                <button class="icon-btn cond-del" title="删除条件">×</button>
+              </div>
+            </div>`;
+        }
+        return `
+          <div class="cond-branch">
+            <span class="node-and">AND</span>
+            <div class="cond-node">
+              <div class="cond-index">${idx}</div>
+              <div class="cond-body">
+                <div class="cond-row">
+                  <span class="node-tag ext-tag">扩展算子</span>
+                  <span class="node-field mono">${c.field}</span>
+                </div>
+                <div class="args">
+                  ${c.args.map(a => `<span class="arg"><b>${a.k}</b> = ${esc(String(a.v))}</span>`).join('')}
+                </div>
+                <div class="cond-path mono">${esc(c.path)}</div>
+              </div>
+              <button class="icon-btn cond-del" title="删除条件">×</button>
+            </div>
+          </div>`;
+      }
+
+      /* ============================ QL 编辑器 ============================ */
+      function renderQLEditor(r) {
+        const host = $('#panel-ql');
+        host.innerHTML = `
+          <div class="panel-inner">
+            <div class="ql-toolbar">
+              <div>
+                <div class="visual-title">DSL / QL 同源编辑器</div>
+                <div class="visual-sub">DSL 语法糖与 JSONLogic 是同一条规则的两种视图，可视化编排最终发射同一份 QL</div>
+              </div>
+              <span class="status-msg">
+                <span class="pane-dot ql"></span>
+                QL Schema v1.0 · 编译通过
+              </span>
+            </div>
+            <div class="ql-grid">
+              <div class="ql-pane">
+                <div class="ql-pane-head">
+                  <span class="pane-label"><span class="pane-dot dsl"></span>DSL 编辑</span>
+                  <button class="btn btn-sm" id="compile-btn">编译为 QL</button>
+                </div>
+                <textarea class="code-area" id="dsl-editor" spellcheck="false">${esc(r.dsl)}</textarea>
+                <div class="ql-pane-foot">
+                  <span id="dsl-status">保存于 ${r.updatedAt} · 无未编译改动</span>
+                </div>
+              </div>
+              <div class="ql-pane">
+                <div class="ql-pane-head">
+                  <span class="pane-label"><span class="pane-dot ql"></span>QL · JSONLogic 预览</span>
+                  <button class="btn btn-sm" id="copy-ql-btn">复制 JSON</button>
+                </div>
+                <pre class="code-area" id="ql-preview"></pre>
+                <div class="ql-pane-foot">
+                  <span>med:* 扩展算子走白名单纯函数 · 无 eval · ReDoS 防护</span>
+                </div>
+              </div>
+            </div>
+          </div>`;
+        $('#ql-preview').textContent = JSON.stringify(r.ql, null, 2);
+        const dslEditor = $('#dsl-editor');
+        const compileBtn = $('#compile-btn');
+        const copyBtn = $('#copy-ql-btn');
+        dslEditor.addEventListener('input', () => {
+          $('#dsl-status').textContent = '有未编译改动 · 点击右侧“编译为 QL”同步预览';
+        });
+        compileBtn.addEventListener('click', () => {
+          $('#dsl-status').textContent = '编译通过 · ' + new Date().toLocaleTimeString('zh-CN', { hour12: false });
+          showToast(`规则 ${r.id} DSL 已编译（原型演示，规则本体未变更）`);
+        });
+        copyBtn.addEventListener('click', async () => {
+          try {
+            await navigator.clipboard.writeText(JSON.stringify(r.ql, null, 2));
+            showToast('QL JSON 已复制到剪贴板');
+          } catch (e) {
+            showToast('复制失败，请手动选择 JSON 文本');
+          }
+        });
+      }
+
+      /* ============================ 实时测试台 ============================ */
+      function initTestbench() {
+        const sel = $('#scenario-select');
+        sel.innerHTML = Object.entries(SCENARIOS).map(([key, s]) => `<option value="${key}">${s.label}</option>`).join('');
+        sel.addEventListener('change', () => {
+          applyScenario(sel.value);
+          evaluateAndRender();
+        });
+        $('#run-now-btn').addEventListener('click', () => {
+          clearTimeout(validationTimer);
+          setValidationState('working', '正在校验…');
+          setTimeout(() => evaluateAndRender(), 180);
+        });
+        [$('#ta-findings'), $('#ta-impression')].forEach(ta => {
+          ta.addEventListener('input', scheduleValidation);
+          ta.addEventListener('paste', () => { clearTimeout(validationTimer); setValidationState('working', '粘贴内容·立即校验…'); setTimeout(evaluateAndRender, 50); });
+        });
+        applyScenario('combined');
+        evaluateAndRender();
+      }
+
+      function applyScenario(key) {
+        const s = SCENARIOS[key];
+        if (!s) return;
+        $('#pt-sex').value = s.sex;
+        $('#pt-age').value = s.age;
+        $('#pt-modality').value = s.modality;
+        $('#ta-findings').value = s.findings;
+        $('#ta-impression').value = s.impression;
+      }
+
+      function scheduleValidation() {
+        setValidationState('working', '等待输入 · 400ms debounce');
+        clearTimeout(validationTimer);
+        validationTimer = setTimeout(() => {
+          setValidationState('working', '正在校验…');
+          setTimeout(() => evaluateAndRender(), 60);
+        }, 400);
+      }
+
+      function setValidationState(state, text) {
+        const status = $('#tb-status');
+        status.classList.toggle('working', state === 'working');
+        $('#tb-status-text').textContent = text;
+      }
+
+      /* ============================ 规则求值（模拟） ============================ */
+      function evaluateAndRender() {
+        const sex = $('#pt-sex').value;
+        const findings = $('#ta-findings').value;
+        const impression = $('#ta-impression').value;
+        lastContext = { sex, age: $('#pt-age').value, findings, impression };
+
+        const results = [];
+        findBloodReverse(findings, 'findings', results);
+        findBloodReverse(impression, 'impression', results);
+        findSexConflict(sex, findings, impression, results);
+        findImpressionConflict(findings, impression, results);
+
+        results.sort((a, b) => {
+          const order = { ERROR: 0, WARN: 1, INFO: 2 };
+          return (order[a.severity] || 3) - (order[b.severity] || 3);
+        });
+
+        lastResults = results;
+        renderResults(results);
+        const active = results.filter(r => !r.dismissed).length;
+        $('#result-count-badge').textContent = `${active} 条`;
+        const time = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+        setValidationState('done', `已校验 · ${active} 条提示 · ${time}`);
+      }
+
+      function findBloodReverse(text, section, results) {
+        const rule = getRule('QC_NUM_0001');
+        if (!rule.enabled) return;
+        const re = /(\d{2,3})\s*[\/／]\s*(\d{2,3})\s*(?:mmHg|毫米汞柱)/g;
+        let m;
+        while ((m = re.exec(text))) {
+          const sys = parseInt(m[1], 10);
+          const dia = parseInt(m[2], 10);
+          if (sys < dia) {
+            const key = `${rule.id}:${section}:${m.index}`;
+            const result = {
+              id: 'r' + (++resultSeq),
+              key,
+              ruleId: rule.id,
+              title: rule.name,
+              severity: rule.severity,
+              dismissed: dismissedKeys.has(key),
+              message: `收缩压 ${m[1]} mmHg 低于舒张压 ${m[2]} mmHg，疑似录入顺序颠倒`,
+              suggestion: '请核对血压数值：收缩压应高于舒张压',
+              spans: [{ section, start: m.index, end: m.index + m[0].length, text: m[0], label: '血压数值', tone: 'warn' }]
+            };
+            results.push(result);
+          }
+        }
+      }
+
+      function findSexConflict(sex, findings, impression, results) {
+        const rule = getRule('QC_SEM_0002');
+        if (!rule.enabled || sex !== 'M') return;
+        const termRe = /(子宫|卵巢|宫颈|阴道|输卵管)/g;
+        const spans = [];
+        [['findings', findings], ['impression', impression]].forEach(([sec, text]) => {
+          const re = new RegExp('(子宫|卵巢|宫颈|阴道|输卵管)', 'g');
+          let m;
+          while ((m = re.exec(text))) {
+            spans.push({ section: sec, start: m.index, end: m.index + m[0].length, text: m[0], label: '女性解剖词', tone: 'error' });
+          }
+        });
+        if (!spans.length) return;
+        const key = `${rule.id}:${spans.map(s => s.section + s.start).join('|')}`;
+        results.push({
+          id: 'r' + (++resultSeq),
+          key,
+          ruleId: rule.id,
+          title: rule.name,
+          severity: rule.severity,
+          dismissed: dismissedKeys.has(key),
+          message: '男性患者报告命中女性专属解剖词汇：' + spans.map(s => s.text).join('、'),
+          suggestion: '请核对患者性别或修订解剖描述',
+          spans
+        });
+      }
+
+      function findImpressionConflict(findings, impression, results) {
+        const rule = getRule('QC_CONSISTENCY_0003');
+        if (!rule.enabled) return;
+        const posRe = new RegExp('(磨玻璃结节|结节|肿块|占位性病变|占位)', 'g');
+        const normRe = /未见(明显)?(确切)?异常|未见明显病变|大致正常/;
+        const positiveSpans = [];
+        let m;
+        while ((m = posRe.exec(findings))) {
+          const before = findings.slice(Math.max(0, m.index - 10), m.index);
+          if (/未见|排除|无明显|未发现|无确切/.test(before)) continue;
+          positiveSpans.push({ section: 'findings', start: m.index, end: m.index + m[0].length, text: m[0], label: '阳性发现', tone: 'warn' });
+        }
+        const normMatch = normRe.exec(impression);
+        if (!positiveSpans.length || !normMatch) return;
+        const spans = positiveSpans.slice(0, 3);
+        spans.push({ section: 'impression', start: normMatch.index, end: normMatch.index + normMatch[0].length, text: normMatch[0], label: '正常结论', tone: 'warn' });
+        const key = `${rule.id}:${spans.map(s => s.section + s.start).join('|')}`;
+        results.push({
+          id: 'r' + (++resultSeq),
+          key,
+          ruleId: rule.id,
+          title: rule.name,
+          severity: rule.severity,
+          dismissed: dismissedKeys.has(key),
+          message: '影像描述提示存在结节 / 占位，但诊断结论为正常，前后逻辑不一致',
+          suggestion: '请在结论中补充该结节的判读意见或随访建议',
+          spans
+        });
+      }
+
+      /* ============================ 结果渲染 ============================ */
+      function renderResults(results) {
+        const container = $('#result-list-container');
+        const visible = results.filter(r => !r.dismissed);
+        if (!visible.length) {
+          container.innerHTML = `
+            <div class="empty-state">
+              <div class="check">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+              </div>
+              <div class="empty-title">未触发质控提示</div>
+              <div class="empty-sub">当前文本未命中已启用规则。可以继续编辑或切换左侧场景再试。</div>
+            </div>`;
+          return;
+        }
+        container.innerHTML = `<div class="result-list">${visible.map(r => `
+          <div class="result-card ${r.severity.toLowerCase()}" data-result-id="${r.id}">
+            <div class="result-head">
+              <span class="chip sev-${r.severity.toLowerCase()}">${r.severity}</span>
+              <span class="result-name">${r.title}</span>
+              <span class="chip chip-neutral mono">${r.ruleId}</span>
+            </div>
+            <div class="result-message">${esc(r.message)}</div>
+            <div class="result-suggestion"><b>建议：</b>${esc(r.suggestion)}</div>
+            <div class="result-actions">
+              <button class="btn btn-sm" data-explain="${r.id}">查看命中解释</button>
+              <button class="btn btn-sm btn-ghost" data-ignore="${r.id}">忽略</button>
+            </div>
+          </div>`).join('')}</div>`;
+        container.querySelectorAll('[data-explain]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const result = results.find(x => x.id === btn.dataset.explain);
+            if (result) openDrawer(result);
+          });
+        });
+        container.querySelectorAll('[data-ignore]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const result = results.find(x => x.id === btn.dataset.ignore);
+            if (result) {
+              dismissedKeys.add(result.key);
+              renderResults(results);
+              const active = results.filter(r => !r.dismissed).length;
+              $('#result-count-badge').textContent = `${active} 条`;
+            }
+          });
+        });
+      }
+
+      /* ============================ 命中解释抽屉 ============================ */
+      function highlightSpans(text, spans) {
+        if (!spans || !spans.length) return esc(text || '') || '<span style="color:var(--muted)">（空）</span>';
+        const sorted = spans.slice().sort((a, b) => a.start - b.start);
+        let out = '';
+        let last = 0;
+        sorted.forEach(s => {
+          if (s.start < last) return;
+          out += esc(text.slice(last, s.start));
+          out += `<mark class="hl ${s.tone === 'error' ? 'error' : ''}">${esc(text.slice(s.start, s.end))}</mark>`;
+          last = s.end;
+        });
+        out += esc(text.slice(last));
+        return out || esc(text) || '<span style="color:var(--muted)">（空）</span>';
+      }
+
+      function openDrawer(result) {
+        currentDrawerResult = result;
+        const rule = getRule(result.ruleId);
+        $('#dr-title').innerHTML = `${esc(result.title)} <span class="chip sev-${result.severity.toLowerCase()}">${result.severity}</span>`;
+        $('#dr-sub').textContent = `${rule.id} · ${rule.category} · ${rule.version}`;
+
+        const pathHtml = rule.visual.children.map((c, i) => `
+          <div class="path-step">
+            <span class="path-ok">✓</span>
+            <span class="path-text mono">${esc(c.path)}</span>
+          </div>`).join('');
+
+        const bySection = groupBy(result.spans, 'section');
+        const evidenceHtml = Object.entries(bySection).map(([sec, spans]) => {
+          const text = sec === 'findings' ? lastContext.findings : lastContext.impression;
+          const secName = sec === 'findings' ? '影像所见 · findings' : '诊断意见 · impression';
+          const meta = spans.map(s => `${s.label}「${s.text}」[${s.start}, ${s.end}]`).join('、');
+          return `
+            <div class="ev-section">
+              <div class="ev-section-title">${secName}</div>
+              <div class="ev-text">${highlightSpans(text, spans)}</div>
+              <div class="ev-meta">${meta}</div>
+            </div>`;
+        }).join('');
+
+        $('#drawer-body').innerHTML = `
+          <div class="drawer-section">
+            <div class="drawer-section-title">命定路径 · 条件均满足</div>
+            <div class="path-card">${pathHtml}</div>
+          </div>
+          <div class="drawer-section">
+            <div class="drawer-section-title">证据定位 · span 高亮</div>
+            ${evidenceHtml}
+          </div>
+          <div class="drawer-section">
+            <div class="drawer-section-title">建议干预</div>
+            <div class="result-suggestion" style="margin:0;"><b>建议：</b>${esc(result.suggestion)}</div>
+          </div>
+          <div class="drawer-section">
+            <div class="drawer-section-title">规则元数据</div>
+            <div class="rule-meta-grid">
+              <div class="meta-kv"><div class="k">规则 ID</div><div class="v mono">${rule.id}</div></div>
+              <div class="meta-kv"><div class="k">严重级别</div><div class="v">${result.severity}</div></div>
+              <div class="meta-kv"><div class="k">分类</div><div class="v">${rule.category}</div></div>
+              <div class="meta-kv"><div class="k">触发时间</div><div class="v">${new Date().toLocaleTimeString('zh-CN', { hour12: false })}</div></div>
+            </div>
+          </div>`;
+
+        $('#drawer').classList.add('open');
+        $('#drawer-overlay').classList.add('show');
+      }
+
+      function closeDrawer() {
+        $('#drawer').classList.remove('open');
+        $('#drawer-overlay').classList.remove('show');
+        currentDrawerResult = null;
+      }
+
+      /* ============================ 事件绑定 ============================ */
+      $('#drawer-close').addEventListener('click', closeDrawer);
+      $('#dr-close-btn').addEventListener('click', closeDrawer);
+      $('#drawer-overlay').addEventListener('click', closeDrawer);
+      $('#dr-ql-btn').addEventListener('click', () => {
+        if (!currentDrawerResult) return;
+        const idx = RULES.findIndex(r => r.id === currentDrawerResult.ruleId);
+        if (idx >= 0) {
+          closeDrawer();
+          switchView('workspace');
+          selectRule(idx);
+          selectedSubtab = 'ql';
+          renderDetailHead();
+          renderQLEditor(RULES[idx]);
+        }
+      });
+      $('#dr-ignore-btn').addEventListener('click', () => {
+        if (!currentDrawerResult) return;
+        dismissedKeys.add(currentDrawerResult.key);
+        closeDrawer();
+        renderResults(lastResults);
+        const active = lastResults.filter(r => !r.dismissed).length;
+        $('#result-count-badge').textContent = `${active} 条`;
+        showToast('提示已忽略，本次会话不再展示');
+      });
+
+      $('#rule-search').addEventListener('input', renderRuleList);
+      $('#subtabs').querySelectorAll('.subtab').forEach(btn => {
+        btn.addEventListener('click', () => {
+          selectedSubtab = btn.dataset.subtab;
+          renderDetailHead();
+          if (selectedSubtab === 'ql') renderQLEditor(RULES[selectedRule]);
+        });
+      });
+      $('#new-rule-btn').addEventListener('click', () => {
+        showToast('规则模板选择：数值逻辑 / 解剖矛盾 / 前后一致性');
+      });
+
+      /* ============================ 初始化 ============================ */
+      renderRuleList();
+      selectRule(0);
+      initTestbench();
+    })();
+  </script>
+</body>
+</html>
